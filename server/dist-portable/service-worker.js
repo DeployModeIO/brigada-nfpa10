@@ -3,10 +3,10 @@
  * API network-first con respuesta 503 offline; cola de inspecciones vía 'sync' + evento online.
  * Comparte esquema IDB con src/lib/offline.ts (usa indexedDB nativo).
  */
-/* VERSION la inyecta el plugin brigada-service-worker de vite reemplazando "1790965929472" por
+/* VERSION la inyecta el plugin brigada-service-worker de vite reemplazando "1791055174086" por
  * una cadena entrecomillada (typeof es seguro: sin reemplazo, el identificador no está declarado).
  * Caché con nombre POR VERSIÓN → en activate se purgan 'brigada-v1' y versiones anteriores. */
-const VERSION = typeof "1790965929472" !== 'undefined' ? String("1790965929472") : 'v1'
+const VERSION = typeof "1791055174086" !== 'undefined' ? String("1791055174086") : 'v1'
 const CACHE = `brigada-${VERSION}`
 const PRECACHE = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
 const DB_NAME = 'brigada-nfpa10'

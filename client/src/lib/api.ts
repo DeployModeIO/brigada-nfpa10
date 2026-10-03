@@ -1,5 +1,8 @@
 /**
- * Cliente HTTP del contrato NFPA-10. baseURL: VITE_API_URL (default http://localhost:3200/api/v1).
+ * Cliente HTTP del contrato NFPA-10. baseURL: VITE_API_URL; si no está definida,
+ * MISMO ORIGEN (window.location.origin + /api/v1) — así el despliegue local funciona
+ * en cualquier host/puerto de la faena (docker :3200, portable :8080, dev :5199 con
+ * proxy /api). En file:// (demo) cae al default histórico; el mock demo intercepta igual.
  * Token en localStorage; 401 → logout global (evento 'nfpa:unauthorized' que escucha AuthContext).
  */
 import { installDemoFetch } from './demoMock'
@@ -12,7 +15,15 @@ function env(): Record<string, string | undefined> {
   return ((import.meta as unknown as { env?: Record<string, string | undefined> }).env) ?? {}
 }
 
-export const API_BASE: string = env().VITE_API_URL ?? 'http://localhost:3200/api/v1'
+function mismaOrigenApi(): string {
+  try {
+    const o = globalThis.window?.location?.origin
+    if (o && /^https?:\/\//.test(o)) return `${o}/api/v1`
+  } catch { /* file://, node, SSR */ }
+  return 'http://localhost:3200/api/v1'
+}
+
+export const API_BASE: string = env().VITE_API_URL ?? mismaOrigenApi()
 
 /** MODO DEMO (VITE_DEMO==='1' en el build): todo fetch hacia API_BASE lo resuelve demoMock. */
 export const DEMO_MODE: boolean = env().VITE_DEMO === '1'
@@ -98,6 +109,8 @@ async function request<T>(method: string, path: string, opts: RequestOpts = {}):
 export const api = {
   get: <T>(path: string, opts?: RequestOpts) => request<T>('GET', path, opts),
   post: <T>(path: string, body?: unknown, opts?: RequestOpts) => request<T>('POST', path, { ...opts, body }),
+  put: <T>(path: string, body?: unknown, opts?: RequestOpts) =>
+    request<T>('PUT', path, { ...opts, body }),
   patch: <T>(path: string, body?: unknown, opts?: RequestOpts) => request<T>('PATCH', path, { ...opts, body }),
   del: <T>(path: string, opts?: RequestOpts) => request<T>('DELETE', path, opts),
   request,

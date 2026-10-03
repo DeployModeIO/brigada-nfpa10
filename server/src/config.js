@@ -31,7 +31,19 @@ const config = {
   allowOrigin: (process.env.ALLOW_ORIGIN || 'http://localhost:5199')
     .split(',').map((s) => s.trim()).filter(Boolean),
   jsonLimit: process.env.JSON_LIMIT || '10mb',
-  webhookIntervalMs: parseInt(process.env.WEBHOOK_INTERVAL_MS || '60000', 10)
+  webhookIntervalMs: parseInt(process.env.WEBHOOK_INTERVAL_MS || '60000', 10),
+  // --- Integración a la base de datos del CLIENTE FINAL (PRODUCT-LINE.md §NORMA 3) ---
+  // off        : sin integración (default; almacén propio sqlite)
+  // referencia : lectura/alta-masiva desde tablas maestras del cliente (selectores + importar)
+  // espejo     : escritura de inspecciones/rechazos a tablas del cliente (mapeo configurable)
+  integrationMode: (process.env.INTEGRATION_MODE || 'off').toLowerCase(),
+  clientDbDriver: (process.env.CLIENT_DB_DRIVER || 'postgres').toLowerCase(),
+  clientDbUrl: process.env.CLIENT_DB_URL || '',
+  // JSON de listas maestras del cliente: {"equipos":{"table":"...","id":"...","label":"...","where":"..."}}
+  integrationRefLists: process.env.INTEGRATION_REF_LISTS || '{}',
+  // JSON columna-cliente -> columna-extintor para POST /integration/ref/:lista/importar
+  integrationImportMap: process.env.INTEGRATION_IMPORT_MAP || '{}',
+  espejoIntervalMs: parseInt(process.env.ESPEJO_INTERVAL_MS || '30000', 10)
 };
 
 module.exports = config;

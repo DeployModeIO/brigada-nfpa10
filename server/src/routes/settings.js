@@ -8,6 +8,7 @@ const router = express.Router();
 
 const DEFAULTS = {
   appName: 'Brigada NFPA 10',
+  jefeBrigada: '',
   logoDataUrl: '',
   temaDefault: 'light',
   webhookUrl: '',
@@ -17,7 +18,7 @@ const DEFAULTS = {
   configUbicaciones: []
 };
 
-const SCALAR_KEYS = ['appName', 'logoDataUrl', 'temaDefault', 'webhookUrl', 'webhookApi'];
+const SCALAR_KEYS = ['appName', 'jefeBrigada', 'logoDataUrl', 'temaDefault', 'webhookUrl', 'webhookApi'];
 const BRAND_KEYS = ['primary', 'ok', 'warn', 'err', 'info'];
 const LIST_KEYS = ['configTipos', 'configUbicaciones'];
 
@@ -68,6 +69,10 @@ router.patch('/settings', auth, requireRole('admin'), async (req, res, next) => 
       const v = cleanStr(body.appName, 80);
       if (!v) return bad(res, 'appName inválido');
       updates.appName = v;
+    }
+    if (body.jefeBrigada !== undefined) {
+      const v = cleanStr(body.jefeBrigada, 120)
+      if (v === null) { updates.jefeBrigada = '' } else { updates.jefeBrigada = v }
     }
     if (body.logoDataUrl !== undefined) {
       const v = body.logoDataUrl === '' ? '' : String(body.logoDataUrl);

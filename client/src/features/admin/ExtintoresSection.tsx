@@ -34,12 +34,13 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
 
-  const [alta, setAlta] = useState({ tag: '', ubicacion: '', tipo: '', capacidad: '4', presion: '', fecha: '' })
+  const [alta, setAlta] = useState({ tag: '', ubicacion: '', tipo: '', agente: '', capacidad: '4', presion: '', fecha: '' })
+  const AGENTES = ['PQS', 'CO2', 'AGUA', 'BC', 'K']
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
 
   const [editando, setEditando] = useState<string | null>(null)
-  const [formEdit, setFormEdit] = useState({ tipo: '', ubicacion: '', capacidad: '', presion: '', notas: '' })
+  const [formEdit, setFormEdit] = useState({ tipo: '', ubicacion: '', capacidad: '', presion: '', notas: '', agente: '', ultimaRecarga: '', vencRecarga: '', vencHidro: '' })
 
   const cargar = useCallback(() => {
     setCargando(true)
@@ -92,6 +93,7 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
         capacidad_l: Number(alta.capacidad),
         ...(alta.presion !== '' ? { presion_bar: Number(alta.presion) } : {}),
         ...(alta.fecha ? { fecha_fabricacion: alta.fecha } : {}),
+        ...(alta.agente ? { agente: alta.agente } : {}),
       })
       setItems((prev) => [...prev, creado].sort((a, b) => a.tag.localeCompare(b.tag)))
       setAlta({ ...alta, tag: '' })
@@ -113,6 +115,10 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
         capacidad_l: formEdit.capacidad !== '' ? Number(formEdit.capacidad) : undefined,
         presion_bar: formEdit.presion !== '' ? Number(formEdit.presion) : undefined,
         notas: formEdit.notas,
+        agente: formEdit.agente || undefined,
+        ultima_recarga: formEdit.ultimaRecarga || undefined,
+        venc_recarga: formEdit.vencRecarga || undefined,
+        venc_hidro: formEdit.vencHidro || undefined,
       })
       setItems((prev) => prev.map((x) => (x.tag === tag ? actualizado : x)))
       setEditando(null)
@@ -187,6 +193,13 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
             <label htmlFor="ext-fecha" className="block text-xs text-text2">Fecha de fabricación (opcional)</label>
             <input id="ext-fecha" type="date" className={`${inputCls} font-mono`} value={alta.fecha} onChange={(e) => setAlta({ ...alta, fecha: e.target.value })} />
           </div>
+          <div>
+            <label htmlFor="ext-agente" className="block text-xs text-text2">Agente NFPA (regla hidrostática 5/12 a)</label>
+            <select id="ext-agente" className={inputCls} value={alta.agente} onChange={(e) => setAlta({ ...alta, agente: e.target.value })}>
+              <option value="">(sin declarar — regla por defecto 5 a)</option>
+              {AGENTES.map((a) => <option key={a} value={a}>{a}{a === 'PQS' ? ' (hidrostática 12 a)' : ' (hidrostática 5 a)'}</option>)}
+            </select>
+          </div>
           <button type="submit" disabled={enviando} aria-busy={enviando} className="flex min-h-14 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-60 sm:col-span-2">
             <CheckIcon size={18} /> {enviando ? 'Registrando…' : 'Registrar extintor'}
           </button>
@@ -246,6 +259,10 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
                                     capacidad: it.capacidad_l != null ? String(it.capacidad_l) : '',
                                     presion: it.presion_bar != null ? String(it.presion_bar) : '',
                                     notas: it.notas ?? '',
+                                    agente: it.agente ?? '',
+                                    ultimaRecarga: it.ultima_recarga ? String(it.ultima_recarga).slice(0, 10) : '',
+                                    vencRecarga: it.venc_recarga ? String(it.venc_recarga).slice(0, 10) : '',
+                                    vencHidro: it.venc_hidro ? String(it.venc_hidro).slice(0, 10) : '',
                                   })
                                 }}
                                 aria-label={`Editar extintor ${it.tag}`}
@@ -302,6 +319,25 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
             <div>
               <label htmlFor="ed-pres" className="block text-xs text-text2">Presión (bar)</label>
               <input id="ed-pres" type="number" step="0.5" className={`${inputCls} font-mono`} value={formEdit.presion} onChange={(e) => setFormEdit({ ...formEdit, presion: e.target.value })} />
+            </div>
+            <div>
+              <label htmlFor="ed-agente" className="block text-xs text-text2">Agente NFPA</label>
+              <select id="ed-agente" className={inputCls} value={formEdit.agente} onChange={(e) => setFormEdit({ ...formEdit, agente: e.target.value })}>
+                <option value="">(sin cambio)</option>
+                {AGENTES.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="ed-ur" className="block text-xs text-text2">Última recarga (taller)</label>
+              <input id="ed-ur" type="date" className={`${inputCls} font-mono`} value={formEdit.ultimaRecarga} onChange={(e) => setFormEdit({ ...formEdit, ultimaRecarga: e.target.value })} />
+            </div>
+            <div>
+              <label htmlFor="ed-vr" className="block text-xs text-text2">Vencimiento recarga</label>
+              <input id="ed-vr" type="date" className={`${inputCls} font-mono`} value={formEdit.vencRecarga} onChange={(e) => setFormEdit({ ...formEdit, vencRecarga: e.target.value })} />
+            </div>
+            <div>
+              <label htmlFor="ed-vh" className="block text-xs text-text2">Vencimiento hidrostática</label>
+              <input id="ed-vh" type="date" className={`${inputCls} font-mono`} value={formEdit.vencHidro} onChange={(e) => setFormEdit({ ...formEdit, vencHidro: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
               <label htmlFor="ed-notas" className="block text-xs text-text2">Notas</label>

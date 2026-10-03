@@ -9,10 +9,10 @@
  */
 
 const DB_KEY = '***'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const LATENCIA_MS = 150
 
-const CRITICAS = ['presion_rango', 'precinto_intacto', 'manguera_sin_fisuras']
+const CRITICAS = ['presion_rango', 'manometro_rango', 'precinto_intacto', 'manguera_sin_fisuras']
 const TAG_RE = /^[a-zA-Z0-9_-]{2,32}$/
 const COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
 
@@ -22,6 +22,12 @@ interface ExtRow {
   tag: string
   ubicacion: string
   tipo: string
+  agente?: string
+  ultima_recarga?: string | null
+  venc_recarga?: string | null
+  ultima_hidro?: string | null
+  venc_hidro?: string | null
+  metadata?: string | null
   capacidad_l: number | null
   presion_bar: number | null
   fecha_fabricacion: string | null
@@ -155,13 +161,34 @@ function parseTs(v: unknown): number {
   return Date.parse(s)
 }
 
+const DIA_MES = 30.44 * DIA
+const DIA_ANIO = 365.25 * DIA
+const HIDRO_ANIOS: Record<string, number> = { PQS: 12, CO2: 5, AGUA: 5, BC: 5, K: 5 }
+
+// Motor NFPA espejo de server/src/lib/nfpa.js (reglas por defecto de la línea).
 function estadoCalculado(e: ExtRow, now = Date.now()): string {
   if (Number(e.rechazado) === 1) return 'rechazado'
   if (!e.ultima_inspeccion || !e.proximo_vencimiento) return 'sin_inspeccionar'
   const t = parseTs(e.proximo_vencimiento)
   if (Number.isNaN(t)) return 'sin_inspeccionar'
-  if (t < now) return 'vencido'
-  if (t - now <= 7 * DIA) return 'por_vencer'
+  let vencido = false
+  let porVencer = false
+  const evalV = (epoch: number, ventanaDias: number) => {
+    if (epoch < now) vencido = true
+    else if (epoch - now <= ventanaDias * DIA) porVencer = true
+  }
+  evalV(t, 7)
+  const vr = parseTs(e.venc_recarga)
+  const ur = parseTs(e.ultima_recarga)
+  if (!Number.isNaN(vr)) evalV(vr, 30)
+  else if (!Number.isNaN(ur)) evalV(ur + 12 * DIA_MES, 30)
+  const vh = parseTs(e.venc_hidro)
+  const fb = parseTs(e.fecha_fabricacion)
+  const hid = e.agente ? HIDRO_ANIOS[String(e.agente).toUpperCase()] : undefined
+  if (!Number.isNaN(vh)) evalV(vh, 30)
+  else if (hid && !Number.isNaN(fb)) evalV(fb + hid * DIA_ANIO, 30)
+  if (vencido) return 'vencido'
+  if (porVencer) return 'por_vencer'
   return 'vigente'
 }
 
@@ -175,6 +202,7 @@ function mkExt(
   tag: string,
   ubicacion: string,
   tipo: string,
+  agente = '',
   cap: number,
   pres: number,
   fabMs: number,
@@ -187,6 +215,7 @@ function mkExt(
     tag,
     ubicacion,
     tipo,
+    agente,
     capacidad_l: cap,
     presion_bar: pres,
     fecha_fabricacion: created,
@@ -260,15 +289,15 @@ function seedExtintores(now: number): ExtRow[] {
     const of = (i % 5) + 1
     switch (estado) {
       case 'vigente':
-        return mkExt(tag, ubicacion, tipo, cap, pres, fab, d(-(10 + (i % 12))), d(15 + (i % 10) * 2), { lat: 12.1 + i * 0.001, lng: -70.05 + i * 0.001 })
+        return mkExt(tag, ubicacion, tipo, tk, cap, pres, fab, d(-(10 + (i % 12))), d(15 + (i % 10) * 2), { lat: 12.1 + i * 0.001, lng: -70.05 + i * 0.001 })
       case 'por_vencer':
-        return mkExt(tag, ubicacion, tipo, cap, pres, fab, d(-27), d(of), {})
+        return mkExt(tag, ubicacion, tipo, tk, cap, pres, fab, d(-27), d(of), {})
       case 'vencido':
-        return mkExt(tag, ubicacion, tipo, cap, pres, fab, d(-(35 + of * 4)), d(-(3 + of * 6)), { notas: 'Pendiente de recarga' })
+        return mkExt(tag, ubicacion, tipo, tk, cap, pres, fab, d(-(35 + of * 4)), d(-(3 + of * 6)), { notas: 'Pendiente de recarga' })
       case 'rechazado':
-        return mkExt(tag, ubicacion, tipo, cap, pres, fab, d(-(5 + of)), d(25), { rechazado: true, notas: 'Fuera de servicio: falla crítica confirmada' })
+        return mkExt(tag, ubicacion, tipo, tk, cap, pres, fab, d(-(5 + of)), d(25), { rechazado: true, notas: 'Fuera de servicio: falla crítica confirmada' })
       default:
-        return mkExt(tag, ubicacion, tipo, cap, pres, fab, null, null, { notas: 'De alta reciente, sin primera inspección' })
+        return mkExt(tag, ubicacion, tipo, tk, cap, pres, fab, null, null, { notas: 'De alta reciente, sin primera inspección' })
     }
   })
 }
@@ -276,6 +305,7 @@ function seedExtintores(now: number): ExtRow[] {
 function seedChecklist(): ChecklistRow[] {
   const items: Array<[string, string]> = [
     ['presion_rango', 'Manómetro en rango verde'],
+    ['manometro_rango', 'Manómetro en rango verde (NFPA §7.2)'],
     ['precinto_intacto', 'Precinto y seguro intactos'],
     ['manguera_sin_fisuras', 'Manguera/pitorro sin fisuras'],
     ['senaletica_visible', 'Señalética visible'],
@@ -871,6 +901,21 @@ async function handleDemo(path: string, init: RequestInit | undefined): Promise<
     })
   }
   if (rest === '/export/extinguishers.xlsx' && method === 'GET') return await xlsxResponse()
+  if (rest === '/integration/status' && method === 'GET') {
+    return json(200, {
+      mode: 'off',
+      selfDriver: 'demo (localStorage)',
+      clientDb: { driver: 'postgres', url: null, configurado: false },
+      referencia: { activo: false, listas: [] },
+      espejo: { activo: false, mapeos: [], pendientes: 0 },
+      pendientesNota: 'demo sin conexión: la integración se configura por ENV del server real',
+    })
+  }
+  if (rest === '/integration/test' && method === 'POST') {
+    const dr = String((body as { driver?: string }).driver || '')
+    if (dr === 'sqlserver' || dr === 'oracle') return err(501, 'connector_pending', `conector ${dr}: pendiente de implementación (contribuya) — ver PRODUCT-LINE.md §Deuda conocida`)
+    return err(400, 'demo_mode', 'En el demo sin servidor no hay BD del cliente que probar; use la instalación local (docker/portable).')
+  }
   if (rest === '/alerts/webhook-test' && method === 'POST') {
     const e = solo('admin')
     if (e) return e

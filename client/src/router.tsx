@@ -18,6 +18,7 @@ const AlertsPage = feature('alerts', () => import('./features/alerts/AlertsPage'
 const ExportPage = feature('export', () => import('./features/export/ExportPage'))
 const AdminSettingsPage = feature('admin', () => import('./features/admin/AdminSettingsPage'))
 const ExtinguisherListPage = feature('extinguishers', () => import('./features/extinguishers/ExtinguisherListPage'))
+const PlantaPage = feature('planta', () => import('./features/planta/PlantaPage'))
 
 function Cargando() {
   return (
@@ -57,6 +58,7 @@ export const routes: RouteObject[] = [
       { path: 'inspecciones', element: <ExtinguisherListPage /> },
       { path: 'buscar', element: <ExtinguisherListPage /> },
       { path: 'inspeccion/:tag', element: <InspectionFormPage /> },
+      { path: 'planta', element: <PlantaPage /> },
       { path: 'alertas', element: <AlertsPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'admin', element: <AdminSettingsPage /> },

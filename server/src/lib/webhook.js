@@ -5,6 +5,7 @@ const https = require('https');
 const crypto = require('crypto');
 const db = require('../db');
 const { estadoCalculado } = require('./estado');
+const nfpa = require('./nfpa');
 
 function log(...args) { console.log(`[${new Date().toISOString()}]`, ...args); }
 
@@ -64,9 +65,13 @@ async function sendEvent(evento, data) {
 // Job periódico: agrupa extintores vencidos y notifica solo si el conjunto cambia.
 async function revisarVencidos() {
   const rows = await db.all('SELECT * FROM extintores WHERE activo = 1');
+  const reglas = await nfpa.obtenerReglas();
   const vencidos = rows
-    .filter((r) => estadoCalculado(r) === 'vencido')
-    .map((r) => ({ tag: r.tag, ubicacion: r.ubicacion, tipo: r.tipo, proximo_vencimiento: r.proximo_vencimiento }))
+    .filter((r) => estadoCalculado(r, Date.now(), reglas) === 'vencido')
+    .map((r) => {
+      const det = nfpa.estadoNfpa(r, reglas);
+      return { tag: r.tag, ubicacion: r.ubicacion, tipo: r.tipo, proximo_vencimiento: r.proximo_vencimiento, motivo: det.motivo, vence_en: det.venceEn };
+    })
     .sort((a, b) => (a.tag < b.tag ? -1 : 1));
   if (!vencidos.length) return;
   const hash = crypto.createHash('sha256').update(vencidos.map((v) => v.tag).join(',')).digest('hex');

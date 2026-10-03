@@ -1,0 +1,48 @@
+# Arranque 100 % local en la red interna de la faena (sin internet en runtime).
+# Uso:      docker compose -f docker/docker-compose.local.yml up -d
+# Credenciales del DB del cliente: SOLO por .env del host (NORMA 3 — nunca en el compose).
+name: brigada-nfpa10
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: brigada-nfpa10:local
+    ports:
+      - "3200:3200"
+    environment:
+      NODE_ENV: production
+      DB_DRIVER: ${DB_DRIVER:-sqlite}
+      AUTH_SECRET: ${AUTH_SECRET:?definir AUTH_SECRET en .env}
+      SERVE_CLIENT: "1"
+      ALLOW_ORIGIN: ${ALLOW_ORIGIN:-http://localhost:3200}
+      DEMO_SEED: ${DEMO_SEED:-0}
+      # Integración BD del cliente (NORMA 3): off|referencia|espejo
+      INTEGRATION_MODE: ${INTEGRATION_MODE:-off}
+      CLIENT_DB_DRIVER: ${CLIENT_DB_DRIVER:-postgres}
+      CLIENT_DB_URL: ${CLIENT_DB_URL:-}
+      INTEGRATION_REF_LISTS: ${INTEGRATION_REF_LISTS:-{}}
+      INTEGRATION_IMPORT_MAP: ${INTEGRATION_IMPORT_MAP:-{}}
+    volumes:
+      - brigada-data:/data
+    restart: unless-stopped
+    networks: [brigada]
+  # BD destino del CLIENTE solo para PRUEBAS de integración (borrar en producción:
+  # allí la BD es la de ellos). Expuesta en :5433 para el test de conexión del admin.
+  db-cliente-demo:
+    image: postgres:16-alpine
+    profiles: ["pruebas"]
+    environment:
+      POSTGRES_PASSWORD: demodemo
+      POSTGRES_DB: base_cliente
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-cliente-demo:/var/lib/postgresql/data
+    networks: [brigada]
+volumes:
+  brigada-data:
+  db-cliente-demo:
+networks:
+  brigada:
+    driver: bridge

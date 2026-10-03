@@ -116,13 +116,13 @@ try {
   check('header con tag + semáforo', /Vigente|Por vencer|Vencido|Rechazado|inspeccion/i.test(badge), `(${badge.trim()})`)
 
   await page.getByTestId('guardar-inspeccion').click()
-  await page.getByText('Faltan 6 respuesta(s)').waitFor()
+  await page.getByText(/Faltan \d+ respuesta\(s\)/).waitFor()
   check('validación inline: exige responder todos los ítems')
   const boxGuardar = await page.getByTestId('guardar-inspeccion').boundingBox()
   const boxPasa = await page.getByTestId('pasa-presion_rango').boundingBox()
   check('touch targets ≥56px (guardar y toggle)', boxGuardar.height >= 56 && boxPasa.height >= 56, `g=${Math.round(boxGuardar.height)} p=${Math.round(boxPasa.height)}`)
 
-  for (const clave of ['presion_rango', 'precinto_intacto', 'manguera_sin_fisuras', 'acceso_despejado', 'soporte_firme']) {
+  for (const clave of ['presion_rango', 'visible_sin_obstaculos', 'senaletica_altura', 'pasador_precinto', 'manometro_rango', 'precinto_intacto', 'manguera_sin_fisuras', 'cilindro_sin_corrosion', 'tarjeta_legible', 'acceso_despejado', 'soporte_firme']) {
     await page.getByTestId(`pasa-${clave}`).click()
   }
   await page.getByTestId('falla-senaletica_visible').click()
@@ -206,7 +206,7 @@ try {
   await page.getByTestId('ficha-tag').waitFor({ timeout: 10000 })
 
   await context.setOffline(true)
-  for (const clave of ['presion_rango', 'precinto_intacto', 'manguera_sin_fisuras', 'senaletica_visible', 'acceso_despejado']) {
+  for (const clave of ['presion_rango', 'visible_sin_obstaculos', 'senaletica_altura', 'pasador_precinto', 'manometro_rango', 'precinto_intacto', 'manguera_sin_fisuras', 'cilindro_sin_corrosion', 'tarjeta_legible', 'senaletica_visible', 'acceso_despejado', 'soporte_firme']) {
     await page.getByTestId(`pasa-${clave}`).click()
   }
   await page.getByTestId('falla-soporte_firme').click()

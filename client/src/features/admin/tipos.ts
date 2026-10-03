@@ -2,6 +2,7 @@
 
 export interface SettingsReal {
   appName: string
+  jefeBrigada?: string
   logoDataUrl: string
   temaDefault: 'dark' | 'light'
   webhookUrl: string
@@ -29,6 +30,14 @@ export interface ExtinguisherReal {
   lng: number | null
   activo: number
   estadoCalculado: EstadoCalculadoReal
+  agente?: string
+  ultima_recarga?: string | null
+  venc_recarga?: string | null
+  ultima_hidro?: string | null
+  venc_hidro?: string | null
+  metadata?: Record<string, unknown> | null
+  venceEn?: string | null
+  motivoVencimiento?: string | null
 }
 
 export interface RespuestaPaginada<T> {

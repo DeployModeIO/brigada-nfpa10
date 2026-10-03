@@ -9,6 +9,7 @@ import {
   GearIcon,
   HomeIcon,
   LogoutIcon,
+  MapIcon,
   MoonIcon,
   ScanIcon,
   ShieldFlameIcon,
@@ -20,6 +21,7 @@ const NAV_ITEMS: Array<{ to: string; etiqueta: string; icono: typeof HomeIcon; e
   { to: '/escanear', etiqueta: 'Escanear', icono: ScanIcon },
   { to: '/inspecciones', etiqueta: 'Inspecciones', icono: ClipboardIcon },
   { to: '/alertas', etiqueta: 'Alertas', icono: AlertIcon },
+  { to: '/planta', etiqueta: 'Planta', icono: MapIcon },
   { to: '/admin', etiqueta: 'Ajustes', icono: GearIcon },
 ]
 
@@ -83,7 +85,7 @@ export default function AppLayout() {
         aria-label="Navegación principal"
         className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface"
       >
-        <ul className="mx-auto grid max-w-screen-sm grid-cols-5">
+        <ul className="mx-auto grid max-w-screen-sm grid-cols-6">
           {NAV_ITEMS.map(({ to, etiqueta, icono: Icono, end }) => (
             <li key={to}>
               <NavLink

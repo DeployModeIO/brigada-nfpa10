@@ -29,12 +29,18 @@ function parseClave(body) {
     if (v === null) errs.push('activo: booleano');
     else rec.activo = v;
   }
+  // Crítico = DATO configurable por BD (spec §Reglas 1): su falla rechaza la inspección.
+  if (body.critico !== undefined) {
+    const v = toInt01(body.critico);
+    if (v === null) errs.push('critico: booleano');
+    else rec.critico = v;
+  }
   return { rec, error: errs.length ? errs.join('; ') : null };
 }
 
 router.get('/checklist-items', auth, async (req, res, next) => {
   try {
-    const rows = await db.all('SELECT id, clave, etiqueta, orden, activo FROM checklist_items WHERE activo = 1 ORDER BY orden ASC, id ASC');
+    const rows = await db.all('SELECT id, clave, etiqueta, orden, critico, activo FROM checklist_items WHERE activo = 1 ORDER BY orden ASC, id ASC');
     res.json(rows);
   } catch (e) { next(e); }
 });
@@ -48,10 +54,10 @@ router.post('/checklist-items', auth, requireRole('admin'), async (req, res, nex
     const exists = await db.get('SELECT id FROM checklist_items WHERE clave = ?', [rec.clave]);
     if (exists) return res.status(409).json({ error: 'conflict', msg: `clave "${rec.clave}" ya existe` });
     const r = await db.run(
-      'INSERT INTO checklist_items (clave, etiqueta, orden, activo) VALUES (?, ?, ?, ?)',
-      [rec.clave, rec.etiqueta, rec.orden ?? 0, rec.activo ?? 1]
+      'INSERT INTO checklist_items (clave, etiqueta, orden, critico, activo) VALUES (?, ?, ?, ?, ?)',
+      [rec.clave, rec.etiqueta, rec.orden ?? 0, rec.critico ?? 0, rec.activo ?? 1]
     );
-    const row = await db.get('SELECT id, clave, etiqueta, orden, activo FROM checklist_items WHERE id = ?', [r.lastInsertRowid]);
+    const row = await db.get('SELECT id, clave, etiqueta, orden, critico, activo FROM checklist_items WHERE id = ?', [r.lastInsertRowid]);
     res.status(201).json(row);
   } catch (e) { next(e); }
 });
@@ -71,7 +77,7 @@ router.patch('/checklist-items/:id', auth, requireRole('admin'), async (req, res
     const cols = Object.keys(rec);
     if (!cols.length) return bad(res, 'Nada que actualizar');
     await db.run(`UPDATE checklist_items SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, [...cols.map((c) => rec[c]), id]);
-    res.json(await db.get('SELECT id, clave, etiqueta, orden, activo FROM checklist_items WHERE id = ?', [id]));
+    res.json(await db.get('SELECT id, clave, etiqueta, orden, critico, activo FROM checklist_items WHERE id = ?', [id]));
   } catch (e) { next(e); }
 });
 

@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/dist-demo
+**/dist-portable
+**/bin
+server/data
+**/.serena
+client/v4173.txt
+**/*.log
+.git

@@ -83,6 +83,63 @@ const MIGRATIONS = [
         created_at VARCHAR(32) NOT NULL DEFAULT ''
       )`
     }
+  },
+  {
+    version: '003_integracion_espejo',
+    tables: {
+      // Cola local del modo espejo (integración a BD del cliente): si el DB destino
+      // está caído, el registro no se pierde; reintenta con backoff (src/integration/espejo.js).
+      espejo_pendencias: `CREATE TABLE IF NOT EXISTS espejo_pendencias (
+        id {AUTOINC},
+        origen VARCHAR(64) NOT NULL,
+        registro_id VARCHAR(64) NOT NULL DEFAULT '',
+        data {TEXT},
+        estado VARCHAR(16) NOT NULL DEFAULT 'pending',
+        intentos INTEGER NOT NULL DEFAULT 0,
+        siguiente_en INTEGER NOT NULL DEFAULT 0,
+        error {TEXT},
+        enviado_en VARCHAR(32),
+        created_at VARCHAR(32) NOT NULL DEFAULT ''
+      )`
+    }
+  },
+  {
+    // Spec brigada-cliente-local.md §Modelo de datos: dominio NFPA-10 sobre 001-003.
+    version: '004_brigada',
+    tables: {
+      habilitaciones: `CREATE TABLE IF NOT EXISTS habilitaciones (
+        id {AUTOINC},
+        brigadista_user_id INTEGER NOT NULL,
+        tipo_equipo VARCHAR(32) NOT NULL DEFAULT '*',
+        vigente_hasta VARCHAR(32) NOT NULL,
+        certificado {TEXT},
+        activo INTEGER NOT NULL DEFAULT 1,
+        created_at VARCHAR(32) NOT NULL DEFAULT ''
+      )`,
+      // Reglas NFPA por agente (criterio 2: reglas cargadas como DATOS, no hardcodeadas).
+      // hidro_anios: 5 para CO2/agua/BC/K, 12 para PQS en cilindro de acero (spec §7).
+      nfpa_reglas: `CREATE TABLE IF NOT EXISTS nfpa_reglas (
+        agente VARCHAR(16) PRIMARY KEY,
+        mensual_dias INTEGER NOT NULL DEFAULT 30,
+        recarga_meses INTEGER NOT NULL DEFAULT 12,
+        hidro_anios INTEGER NOT NULL DEFAULT 5,
+        amarillo_insp_dias INTEGER NOT NULL DEFAULT 7,
+        amarillo_largo_dias INTEGER NOT NULL DEFAULT 30,
+        nota VARCHAR(255) NOT NULL DEFAULT ''
+      )`
+    },
+    // ALTERs: se aplican una sola vez al registrarse la versión (migrate es transaccional-por-versión).
+    alter: [
+      'ALTER TABLE extintores ADD COLUMN metadata {TEXT}',
+      "ALTER TABLE extintores ADD COLUMN agente VARCHAR(16) NOT NULL DEFAULT ''",
+      'ALTER TABLE extintores ADD COLUMN ultima_recarga VARCHAR(32)',
+      'ALTER TABLE extintores ADD COLUMN venc_recarga VARCHAR(32)',
+      'ALTER TABLE extintores ADD COLUMN ultima_hidro VARCHAR(32)',
+      'ALTER TABLE extintores ADD COLUMN venc_hidro VARCHAR(32)',
+      'ALTER TABLE checklist_items ADD COLUMN critico INTEGER NOT NULL DEFAULT 0',
+      "ALTER TABLE inspecciones ADD COLUMN habilitacion VARCHAR(32) NOT NULL DEFAULT ''",
+      'ALTER TABLE inspecciones ADD COLUMN motivo_rechazo {TEXT}'
+    ]
   }
 ];
 
@@ -95,6 +152,10 @@ async function migrate() {
     if (done) continue;
     for (const sql of Object.values(m.tables)) {
       await db.exec(d(dialect, sql));
+    }
+    for (const sql of (m.alter || [])) {
+      try { await db.exec(d(dialect, sql)); }
+      catch (e) { console.log(`[${new Date().toISOString()}] [db] ${m.version}: ALTER omitido (${e.message})`); }
     }
     await db.run('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [m.version, new Date().toISOString()]);
     console.log(`[${new Date().toISOString()}] [db] migración aplicada: ${m.version}`);

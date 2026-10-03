@@ -15,6 +15,7 @@ import { leerTipos, leerUbicaciones } from './listasConfig'
 import ChecklistSection from './ChecklistSection'
 import MarcaSection from './MarcaSection'
 import WebhookSection from './WebhookSection'
+import IntegracionSection from './IntegracionSection'
 import ListasSection from './ListasSection'
 import ExtintoresSection from './ExtintoresSection'
 import { Aviso } from './UI'
@@ -124,6 +125,7 @@ export default function AdminSettingsPage() {
         onListas={(tipos, ubicaciones) => setListas({ tipos, ubicaciones })}
         onGuardado={onGuardado}
       />
+      <IntegracionSection esAdmin={esAdmin} soloLectura={!esAdmin} />
       <ExtintoresSection esAdmin={esAdmin} tipos={listas.tipos} ubicaciones={listas.ubicaciones} />
     </section>
   )

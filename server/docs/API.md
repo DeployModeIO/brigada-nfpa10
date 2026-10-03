@@ -82,3 +82,40 @@ curl -s -X POST http://localhost:3200/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"Br1g@d4!n"}'
 ```
+
+## Integración a la BD del cliente (retrofit suite-local v1 — NORMA 3)
+
+Configuración SOLO por ENV del server (`INTEGRATION_MODE=off|referencia|espejo`,
+`CLIENT_DB_DRIVER`, `CLIENT_DB_URL`, `INTEGRATION_REF_LISTS`, `INTEGRATION_IMPORT_MAP`).
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/integration/status` | admin | modo, driver propio, DB cliente (URL enmascarada), listas referencia, mapeos/pendientes espejo |
+| POST | `/integration/test` | admin | prueba credenciales UNA vez y lista tablas; NO persiste nada. `sqlserver`/`oracle` → 501 `connector_pending` |
+| GET | `/integration/ref` | auth | listas definidas en modo referencia |
+| GET | `/integration/ref/:nombre` | auth | filas `{id,label}` de la tabla maestra del cliente (cache TTL 5 min) |
+| POST | `/integration/ref/:nombre/importar` | admin | alta masiva de extintores desde la maestra del cliente con mapeo `INTEGRATION_IMPORT_MAP`; columnas no mapeadas viajan a `metadata` (origen «referencia»). Respuesta: `{leidas,creados,actualizados,saltados,errores}` |
+| GET/PUT | `/integration/espejo/mapeos` | admin | JSON de mapeos origen→tabla destino (`inspecciones`, `rechazos`) |
+| POST | `/integration/espejo/flush` | admin | fuerza el envío de la cola espejo (pendientes con backoff 15 s→30 min) |
+
+## Habilitaciones de brigadistas (spec §Reglas 3)
+
+`habilitaciones(brigadista_user_id, tipo_equipo ('*'=todos o agente), vigente_hasta, certificado)`.
+- POST /inspections como rol `inspector` sin habilitación vigente → **403 `habilitacion_vencida`**.
+- `supervisor`/`admin` pueden firmar sin habilitación; queda `habilitacion='exenta_supervisor|exenta_admin'` en la fila (nota de auditoría).
+- Lista configurable vía setting `habilitacionRoles` (default `inspector`).
+
+## Vencimientos NFPA (motor `src/lib/nfpa.js`)
+
+- Reglas como DATOS en `nfpa_reglas` (mensual 30 d; recarga 12 m; hidrostática 12 a PQS-acero / 5 a CO2·agua·BC·K; manda la fecha de fabricación del cilindro).
+- `estadoCalculado` = min(inspección, recarga, hidrostática); amarillo: inspección ≤7 d, recarga/hidrostática ≤30 d.
+- `GET /extinguishers` añade `venceEn`, `motivoVencimiento` y filtros `?area=&agente=` (para `/planta`).
+- POST /inspections revalida `proximo_vencimiento` con el motor (ya no es solo +30 d fijos).
+
+## Nuevas respuestas/extensiones (retrofit)
+
+- `POST /inspections` responde además `habilitacion`; guarda `motivo_rechazo`.
+- `GET /checklist-items` incluye `critico` (1 = su falla rechaza; crítico es DATO configurable, spec §Reglas 1).
+- `GET /alerts/replacement-list.csv`: `area,tag,ubicacion,tipo,capacidad_l,proximo_vencimiento,motivo,dias_mora` — agrupado por área y ordenado por urgencia (rechazado > vencido con más mora).
+- `GET /export/extinguishers.xlsx`: columnas Agente/Venc. recarga/Venc. hidrostática + estado coloreado + fila de firma de versión `brigada-nfpa10/xlsx-v1.1`.
+- `PATCH /settings` acepta `jefeBrigada` (firma del informe Bomberos del client).

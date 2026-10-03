@@ -84,3 +84,11 @@ export const OfflineIcon = (p: IconProps) => (
 export const ChevronRightIcon = (p: IconProps) => (
   <svg {...base(p)}><path d="m9 6 6 6-6 6" /></svg>
 )
+
+export const MapIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14" /><path d="M15 6v14" /></svg>
+)
+
+export const PlugIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M12 9v6" /><path d="M8 3v5" /><path d="M16 3v5" /><path d="M5 8h14v3a7 7 0 0 1-7 7 7 7 0 0 1-7-7V8Z" /><path d="M12 18v3" /></svg>
+)

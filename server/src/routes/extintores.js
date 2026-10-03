@@ -4,6 +4,7 @@ const db = require('../db');
 const { auth, requireRole } = require('../middleware/auth');
 const { bad, cleanStr, toInt01, toNum, validDate, TAG_RE, ESTADOS_INSP, paginate, searchLike } = require('../middleware/validate');
 const { estadoCalculado } = require('../lib/estado');
+const nfpa = require('../lib/nfpa');
 
 const router = express.Router();
 
@@ -41,7 +42,24 @@ function parseRec(body, full) {
       else rec[f] = n;
     }
   }
-  for (const f of ['fecha_fabricacion', 'ultima_inspeccion', 'proximo_vencimiento']) {
+  if (body.agente !== undefined) {
+    const v = cleanStr(body.agente, 16);
+    if (v === null) rec.agente = '';
+    else rec.agente = v.toUpperCase();
+  }
+  if (body.metadata !== undefined) {
+    if (body.metadata === null || body.metadata === '') rec.metadata = null;
+    else {
+      let txt;
+      try { txt = typeof body.metadata === 'string' ? body.metadata : JSON.stringify(body.metadata); }
+      catch (_) { errs.push('metadata: JSON no serializable'); txt = null; }
+      if (txt !== null) {
+        if (txt.length > 4000) errs.push('metadata: máximo 4000 chars');
+        else { try { JSON.parse(txt); rec.metadata = txt; } catch (_) { errs.push('metadata: JSON inválido'); } }
+      }
+    }
+  }
+  for (const f of ['fecha_fabricacion', 'ultima_inspeccion', 'proximo_vencimiento', 'ultima_recarga', 'venc_recarga', 'ultima_hidro', 'venc_hidro']) {
     if (body[f] !== undefined) {
       const v = validDate(body[f]);
       if (v === undefined) errs.push(`${f}: fecha inválida (ISO 8601)`);
@@ -61,8 +79,23 @@ function parseRec(body, full) {
   return { rec, error: errs.length ? errs.join('; ') : null };
 }
 
-function withEstado(row, now) {
-  return { ...row, rechazado: Number(row.rechazado) === 1, estadoCalculado: estadoCalculado(row, now) };
+function conMetadata(row) {
+  let md = null;
+  try { md = row.metadata ? JSON.parse(row.metadata) : null; } catch (_) { md = null; }
+  return { ...row, metadata: md };
+}
+
+async function withEstado(row, now) {
+  const reglas = await nfpa.obtenerReglas();
+  const est = estadoCalculado(row, now, reglas);
+  const detalle = nfpa.estadoNfpa(row, reglas, now);
+  return {
+    ...conMetadata(row),
+    rechazado: Number(row.rechazado) === 1,
+    estadoCalculado: est,
+    venceEn: detalle.venceEn,
+    motivoVencimiento: detalle.motivo
+  };
 }
 
 router.get('/extinguishers', auth, async (req, res, next) => {
@@ -71,15 +104,31 @@ router.get('/extinguishers', auth, async (req, res, next) => {
     const q = searchLike(req.query.q);
     const estado = cleanStr(req.query.estado, 20);
     const now = Date.now();
-    let rows = await db.all('SELECT * FROM extintores WHERE activo = 1');
-    let items = rows.map((r) => withEstado(r, now));
+    const area = cleanStr(req.query.area, 120);
+    const agente = cleanStr(req.query.agente, 16);
+    const rows = await db.all('SELECT * FROM extintores WHERE activo = 1');
+    let items = [];
+    for (const r of rows) items.push(await withEstado(r, now));
     if (estado) items = items.filter((r) => r.estadoCalculado === estado);
+    if (agente) items = items.filter((r) => (r.agente || nfpa.agenteDe(r)) === agente.toUpperCase());
+    if (area) {
+      // Filtro por área (spec /planta): coincidencia en ubicacion, metadata.area o
+      // metadata.ubicacion_detalle.nave (alta desde referencia del cliente).
+      const needle = area.toLowerCase();
+      items = items.filter((r) => {
+        const md = r.metadata || {};
+        return (r.ubicacion || '').toLowerCase().includes(needle) ||
+          String(md.area || '').toLowerCase().includes(needle) ||
+          String((md.ubicacion_detalle || {}).nave || '').toLowerCase().includes(needle);
+      });
+    }
     if (q) {
       const needle = q.replace(/[%_]/g, '').toLowerCase();
       items = items.filter((r) =>
         (r.tag || '').toLowerCase().includes(needle) ||
         (r.ubicacion || '').toLowerCase().includes(needle) ||
-        (r.tipo || '').toLowerCase().includes(needle));
+        (r.tipo || '').toLowerCase().includes(needle) ||
+        (r.agente || '').toLowerCase().includes(needle));
     }
     items.sort((a, b) => (a.tag < b.tag ? -1 : 1));
     res.json({
@@ -95,7 +144,7 @@ router.get('/extinguishers/:tag', auth, async (req, res, next) => {
   try {
     const row = await db.get('SELECT * FROM extintores WHERE tag = ? AND activo = 1', [req.params.tag.toUpperCase()]);
     if (!row) return res.status(404).json({ error: 'not_found', msg: 'Extintor no encontrado' });
-    res.json(withEstado(row));
+    res.json(await withEstado(row));
   } catch (e) { next(e); }
 });
 
@@ -108,18 +157,21 @@ router.post('/extinguishers', auth, requireRole('admin'), async (req, res, next)
     const now = new Date().toISOString();
     await db.run(
       `INSERT INTO extintores
-        (tag, ubicacion, tipo, capacidad_l, presion_bar, fecha_fabricacion, ultima_inspeccion,
-         proximo_vencimiento, estado_inspeccion, rechazado, notas, lat, lng, activo, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        (tag, ubicacion, tipo, agente, capacidad_l, presion_bar, fecha_fabricacion, ultima_inspeccion,
+         proximo_vencimiento, ultima_recarga, venc_recarga, ultima_hidro, venc_hidro,
+         estado_inspeccion, rechazado, notas, metadata, lat, lng, activo, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       [
-        rec.tag, rec.ubicacion, rec.tipo || '', rec.capacidad_l ?? null, rec.presion_bar ?? null,
+        rec.tag, rec.ubicacion, rec.tipo || '', rec.agente ?? '', rec.capacidad_l ?? null, rec.presion_bar ?? null,
         rec.fecha_fabricacion ?? null, rec.ultima_inspeccion ?? null, rec.proximo_vencimiento ?? null,
-        rec.estado_inspeccion || 'n_a', rec.rechazado ?? 0, rec.notas ?? null, rec.lat ?? null, rec.lng ?? null,
+        rec.ultima_recarga ?? null, rec.venc_recarga ?? null, rec.ultima_hidro ?? null, rec.venc_hidro ?? null,
+        rec.estado_inspeccion || 'n_a', rec.rechazado ?? 0, rec.notas ?? null, rec.metadata ?? null,
+        rec.lat ?? null, rec.lng ?? null,
         now, now
       ]
     );
     const row = await db.get('SELECT * FROM extintores WHERE tag = ?', [rec.tag]);
-    res.status(201).json(withEstado(row));
+    res.status(201).json(await withEstado(row));
   } catch (e) { next(e); }
 });
 
@@ -137,7 +189,7 @@ router.patch('/extinguishers/:tag', auth, async (req, res, next) => {
     const sets = cols.map((c) => `${c} = ?`).join(', ');
     await db.run(`UPDATE extintores SET ${sets}, updated_at = ? WHERE tag = ?`, [...cols.map((c) => rec[c]), now, tag]);
     const updated = await db.get('SELECT * FROM extintores WHERE tag = ?', [tag]);
-    res.json(withEstado(updated));
+    res.json(await withEstado(updated));
   } catch (e) { next(e); }
 });
 

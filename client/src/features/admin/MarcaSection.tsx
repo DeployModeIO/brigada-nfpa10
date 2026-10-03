@@ -25,6 +25,7 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/
 export default function MarcaSection({ settings, esAdmin, onGuardado }: { settings: SettingsReal | null; esAdmin: boolean; onGuardado: (s: SettingsReal) => void }) {
   const { config } = useConfig()
   const [appName, setAppName] = useState('')
+  const [jefeBrigada, setJefeBrigada] = useState('')
   const [logoDataUrl, setLogoDataUrl] = useState('')
   const [brand, setBrand] = useState<Record<CampoBrand, string>>({ primary: '#3b82f6', ok: '#10b981', warn: '#f59e0b', err: '#ef4444', info: '#38bdf8' })
   const [avisoLogo, setAvisoLogo] = useState<string | null>(null)
@@ -36,6 +37,7 @@ export default function MarcaSection({ settings, esAdmin, onGuardado }: { settin
   useEffect(() => {
     const fuente = settings ?? config
     setAppName(fuente?.appName ?? '')
+    setJefeBrigada((fuente as { jefeBrigada?: string })?.jefeBrigada ?? '')
     setLogoDataUrl((settings && 'logoDataUrl' in settings ? settings.logoDataUrl : config.logoDataUrl) ?? '')
     if (settings?.brand || config.brand) {
       const b = (settings?.brand ?? config.brand) as Partial<Record<CampoBrand, string>>
@@ -84,6 +86,7 @@ export default function MarcaSection({ settings, esAdmin, onGuardado }: { settin
     try {
       const payload: Record<string, unknown> = {
         appName: appName.trim() || 'Brigada NFPA 10',
+        jefeBrigada: jefeBrigada.trim(),
         logoDataUrl,
         brand: { ...brand },
       }
@@ -138,6 +141,21 @@ export default function MarcaSection({ settings, esAdmin, onGuardado }: { settin
               disabled={lectura}
               onChange={(e) => setAppName(e.target.value)}
               maxLength={80}
+            />
+          </div>
+          <div>
+            <label htmlFor="marca-jefe" className="block text-xs font-medium text-text2">
+              Jefe de brigada (firma del informe Bomberos)
+            </label>
+            <input
+              id="marca-jefe"
+              className={inputCls}
+              value={jefeBrigada}
+              readOnly={lectura}
+              disabled={lectura}
+              onChange={(e) => setJefeBrigada(e.target.value)}
+              maxLength={120}
+              placeholder="Nombre y apellido del jefe de brigada"
             />
           </div>
 

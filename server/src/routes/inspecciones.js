@@ -3,8 +3,10 @@ const express = require('express');
 const db = require('../db');
 const { auth } = require('../middleware/auth');
 const { bad, cleanStr, toNum, validDate, B64_RE, paginate } = require('../middleware/validate');
-const { esCritica } = require('../lib/estado');
-const { sendEvent } = require('../lib/webhook');
+const { criticasActivas, esCritica } = require('../lib/estado');
+const { sendEvent, getSetting } = require('../lib/webhook');
+const nfpa = require('../lib/nfpa');
+const espejo = require('../integration/espejo');
 
 const router = express.Router();
 const MAX_FOTO_CHARS = 4000000;
@@ -16,6 +18,30 @@ router.post('/inspections', auth, async (req, res, next) => {
     if (!tag) return bad(res, 'tag es requerido');
     const ext = await db.get('SELECT * FROM extintores WHERE tag = ? AND activo = 1', [tag.toUpperCase()]);
     if (!ext) return res.status(404).json({ error: 'not_found', msg: 'Extintor no encontrado' });
+
+    // Spec §Reglas 3 + criterio 5: habilitación vigente obligatoria para firmar inspección.
+    // Roles exentos (default supervisor|admin) pueden firmar SIN habilitación, pero queda
+    // nota de auditoría en inspecciones.habilitacion.
+    const tipoEq = nfpa.agenteDe(ext) || '*';
+    const habRoles = String((await getSetting('habilitacionRoles')) || 'inspector').split(',').map((x) => x.trim()).filter(Boolean);
+    let habilitacionNota = 'no_requerida';
+    if (habRoles.includes(req.user.rol)) {
+      const ahoraIso = new Date().toISOString();
+      const habs = await db.all(
+        "SELECT vigente_hasta FROM habilitaciones WHERE brigadista_user_id = ? AND activo = 1 AND (tipo_equipo = '*' OR tipo_equipo = ?)",
+        [req.user.id, tipoEq]
+      );
+      const vigente = habs.some((h) => (nfpa.parseTs(h.vigente_hasta) || 0) >= Date.now());
+      if (!vigente) {
+        return res.status(403).json({
+          error: 'habilitacion_vencida',
+          msg: `Brigadista sin habilitación vigente para ${tipoEq === '*' ? 'este equipo' : `agente ${tipoEq}`}: inspección NO registrada`
+        });
+      }
+      habilitacionNota = 'vigente';
+    } else if (req.user.rol === 'supervisor' || req.user.rol === 'admin') {
+      habilitacionNota = `exenta_${req.user.rol}`;
+    }
 
     if (!body.resultados || typeof body.resultados !== 'object' || Array.isArray(body.resultados)) {
       return bad(res, 'resultados debe ser un objeto {clave: bool}');
@@ -34,8 +60,9 @@ router.post('/inspections', auth, async (req, res, next) => {
       }
       resultados[c] = v === undefined ? false : Boolean(v);
     }
+    const criticasSet = await criticasActivas();
     const fallas = claves.filter((c) => !resultados[c]);
-    const criticas = fallas.filter(esCritica);
+    const criticas = fallas.filter((c) => criticasSet.has(c) || esCritica(c));
     const rechazado = criticas.length > 0 ? 1 : 0;
     const estado_inspeccion = fallas.length ? 'falla' : 'pasa';
 
@@ -58,17 +85,23 @@ router.post('/inspections', auth, async (req, res, next) => {
 
     const now = new Date();
     const nowIso = now.toISOString();
-    const proxIso = new Date(now.getTime() + 30 * 86400000).toISOString();
+    // Spec §Reglas 2: próximo vencimiento = min(mensual, recarga, hidrostática).
+    const reglas = await nfpa.obtenerReglas();
+    const mensualMs = now.getTime() + nfpa.mensualDias(tipoEq === '*' ? '' : tipoEq, reglas) * nfpa.DIA_MS;
+    const otrasFechas = nfpa.vencimientosEfectivos({ ...ext, ultima_inspeccion: null, proximo_vencimiento: null }, reglas, now.getTime())
+      .map((v) => v.epoch);
+    const proxIso = new Date(Math.min(mensualMs, ...otrasFechas)).toISOString();
     let inspId = null;
 
     await db.transaction(async (tx) => {
       const r = await tx.run(
         `INSERT INTO inspecciones
-          (tag, resultados, fallas, criticas_fallan, observaciones, foto, lat, lng, dispositivo, inspector_id, inspector_username, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (tag, resultados, fallas, criticas_fallan, observaciones, foto, lat, lng, dispositivo, inspector_id, inspector_username, created_at, habilitacion, motivo_rechazo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           ext.tag, JSON.stringify(resultados), JSON.stringify(fallas), criticas.length ? 1 : 0,
-          observaciones, foto, lat, lng, dispositivo, req.user.id, req.user.username, nowIso
+          observaciones, foto, lat, lng, dispositivo, req.user.id, req.user.username, nowIso,
+          habilitacionNota, criticas.join(', ') || null
         ]
       );
       inspId = r.lastInsertRowid;
@@ -87,7 +120,8 @@ router.post('/inspections', auth, async (req, res, next) => {
       proximo_vencimiento: proxIso,
       resultados,
       fallas,
-      criticas: fallas.filter(esCritica),
+      criticas,
+      habilitacion: habilitacionNota,
       estado_inspeccion,
       rechazado: rechazado === 1,
       extintor: { tag: row.tag, ultima_inspeccion: row.ultima_inspeccion, proximo_vencimiento: row.proximo_vencimiento, estado_inspeccion: row.estado_inspeccion, rechazado: row.rechazado }
@@ -96,7 +130,20 @@ router.post('/inspections', auth, async (req, res, next) => {
     if (fallas.length) {
       sendEvent('inspeccion_con_fallas', {
         tag: ext.tag, ubicacion: ext.ubicacion, inspector: req.user.username,
-        fallas, criticas: fallas.filter(esCritica), rechazado: rechazado === 1, inspeccion_id: inspId
+        fallas, criticas, rechazado: rechazado === 1, inspeccion_id: inspId
+      }).catch(() => {});
+    }
+    // Modo espejo (NORMA 3): cola fail-silent hacia tablas del cliente. Rechazo = orden
+    // de trabajo (origen 'rechazos' además de la inspección completa).
+    espejo.enqueue('inspecciones', {
+      id: inspId, tag: ext.tag, fecha: nowIso, resultados, fallas, criticas,
+      rechazado: rechazado === 1, observaciones, inspector_username: req.user.username,
+      dispositivo, habilitacion: habilitacionNota
+    }).catch(() => {});
+    if (rechazado === 1) {
+      espejo.enqueue('rechazos', {
+        id: inspId, tag: ext.tag, fecha: nowIso, motivo: criticas.join(', '),
+        criticas, inspector_username: req.user.username, ubicacion: ext.ubicacion
       }).catch(() => {});
     }
   } catch (e) { next(e); }

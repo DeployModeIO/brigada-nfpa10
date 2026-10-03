@@ -1,25 +1,29 @@
 'use strict';
 // Cálculo de estado según vencimiento (NFPA 10) y reglas de rechazo.
-const CRITICAS = ['presion_rango', 'precinto_intacto', 'manguera_sin_fisuras'];
+// El motor completo vive en lib/nfpa.js; aquí se mantiene la API histórica
+// (estadoCalculado(e, now)) EXTENDIDA con un tercer argumento opcional `reglas`.
+// CRITICAS: fallback cuando la BD aún no marca críticos por fila (spec §Reglas 1:
+// los críticos son DATOS de checklist_items.critico, cargados por el seed NFPA).
+const { estadoNfpa, parseTs } = require('./nfpa');
+const CRITICAS = ['presion_rango', 'manometro_rango', 'precinto_intacto', 'manguera_sin_fisuras'];
 
-function parseTs(v) {
-  if (!v) return NaN;
-  const s = String(v).trim().replace(' ', 'T');
-  const t = Date.parse(s);
-  return Number.isNaN(t) ? NaN : t;
-}
-
-// vigente | por_vencer (<=7d) | vencido | rechazado | sin_inspeccionar
-function estadoCalculado(e, now = Date.now()) {
-  if (Number(e.rechazado) === 1) return 'rechazado';
-  if (!e.ultima_inspeccion || !e.proximo_vencimiento) return 'sin_inspeccionar';
-  const t = parseTs(e.proximo_vencimiento);
-  if (Number.isNaN(t)) return 'sin_inspeccionar';
-  if (t < now) return 'vencido';
-  if (t - now <= 7 * 86400000) return 'por_vencer';
-  return 'vigente';
+function estadoCalculado(e, now = Date.now(), reglas = null) {
+  return estadoNfpa(e, reglas, now).estado;
 }
 
 function esCritica(clave) { return CRITICAS.includes(clave); }
 
-module.exports = { CRITICAS, estadoCalculado, esCritica };
+// Críticos autoritativos desde BD (con caché corto). Si la tabla aún no tiene
+// filas con critico=1, cae al fallback estático.
+let criticasCache = null;
+async function criticasActivas(forzar = false) {
+  if (criticasCache && !forzar) return criticasCache;
+  try {
+    const db = require('../db');
+    const rows = await db.all('SELECT clave FROM checklist_items WHERE critico = 1 AND activo = 1');
+    if (rows.length) return (criticasCache = new Set(rows.map((r) => r.clave)));
+  } catch (_) { /* tabla/columna aún no migrada */ }
+  return new Set(CRITICAS);
+}
+
+module.exports = { CRITICAS, estadoCalculado, esCritica, criticasActivas, parseTs };

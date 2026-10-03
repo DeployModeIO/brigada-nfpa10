@@ -5,6 +5,7 @@ const db = require('./db');
 const { migrate } = require('./db/migrate');
 const { buildApp } = require('./app');
 const { startWebhookJob } = require('./lib/webhook');
+const { startEspejoJob } = require('./integration/espejo');
 
 (async () => {
   try {
@@ -25,6 +26,7 @@ const { startWebhookJob } = require('./lib/webhook');
 
   const app = buildApp();
   startWebhookJob(config.webhookIntervalMs);
+  startEspejoJob();
 
   const server = app.listen(config.port, () => {
     console.log(`[${new Date().toISOString()}] API Brigada NFPA 10 escuchando en http://0.0.0.0:${config.port} (DB_DRIVER=${config.dbDriver}, rutas /api/v1)`);

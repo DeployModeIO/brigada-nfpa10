@@ -1,6 +1,7 @@
 'use strict';
 // Capa de adaptador multi-BD. Expone una API asíncrona única, con placeholders "?".
-// Drivers: sqlite.js | postgres.js | mysql.js, elegidos por DB_DRIVER + DB_URL.
+// Drivers propios: sqlite.js | postgres.js | mysql.js (reales) | sqlserver.js | oracle.js (stubs).
+// Elegidos por DB_DRIVER; para DB del CLIENTE FINAL ver src/integration/ (misma convención).
 const config = require('../config');
 
 const DRIVERS = { sqlite: './sqlite', postgres: './postgres', mysql: './mysql' };
@@ -12,7 +13,9 @@ function pickDriver() {
   if (name === 'sqlite') return require('./sqlite');
   if (name === 'postgres') return require('./postgres');
   if (name === 'mysql') return require('./mysql');
-  throw new Error(`DB_DRIVER inválido: "${name}" (usa sqlite|postgres|mysql)`);
+  if (name === 'sqlserver') return require('./sqlserver');
+  if (name === 'oracle') return require('./oracle');
+  throw new Error(`DB_DRIVER inválido: "${name}" (usa sqlite|postgres|mysql|sqlserver|oracle — estos dos últimos son stubs pendientes)`);
 }
 
 // better-sqlite3 rechaza undefined como parámetro; se normaliza a null.

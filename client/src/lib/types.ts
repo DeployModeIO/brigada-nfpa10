@@ -25,6 +25,15 @@ export interface Extinguisher {
   created_at?: string
   updated_at?: string
   estadoCalculado: EstadoCalculado | string
+  /** Dominio NFPA (migración 004): agente PQS|CO2|AGUA|BC|K, vencimientos recarga/hidrostática. */
+  agente?: string
+  ultima_recarga?: string | null
+  venc_recarga?: string | null
+  ultima_hidro?: string | null
+  venc_hidro?: string | null
+  metadata?: Record<string, unknown> | null
+  venceEn?: string | null
+  motivoVencimiento?: string | null
 }
 
 /** Fila de GET /checklist-items (activo llega 0/1 crudo de la BD). */
@@ -62,6 +71,7 @@ export interface InspectionAck {
   fallas: string[]
   criticas: string[]
   estado_inspeccion: 'pasa' | 'falla'
+  habilitacion?: string
   rechazado: boolean
 }
 
@@ -79,6 +89,8 @@ export interface Inspection {
   inspector_id: number | null
   inspector_username: string
   created_at: string
+  habilitacion?: string
+  motivo_rechazo?: string | null
   tiene_foto?: boolean
   foto?: string | null
 }
@@ -114,6 +126,7 @@ export interface PanelAlertas {
 /** GET /public-config y GET /settings. */
 export interface PublicConfig {
   appName: string
+  jefeBrigada?: string
   logoDataUrl?: string | null
   brand?: Record<string, string> | null
   temaDefault?: 'dark' | 'light'

@@ -13,6 +13,7 @@ const inspeccionesRoutes = require('./routes/inspecciones');
 const alerts = require('./routes/alerts');
 const exportRoutes = require('./routes/export');
 const settings = require('./routes/settings');
+const integracionRoutes = require('./routes/integracion');
 
 function ts() { return new Date().toISOString(); }
 
@@ -50,6 +51,7 @@ function buildApp() {
   api.use(alerts.router);
   api.use(exportRoutes);
   api.use(settings.router);
+  api.use(integracionRoutes);
   app.use('/api/v1', api);
 
   // Modo serve-client (binario portable): la web embebida se sirve desde el propio server.

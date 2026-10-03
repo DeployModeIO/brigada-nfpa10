@@ -7,6 +7,7 @@
  * - Datos de la base: JSON completo de GET /extinguishers (paginado recorrido).
  */
 import { useMemo, useState } from 'react'
+import QRCode from 'qrcode'
 import pdfMakeDefault from 'pdfmake/build/pdfmake'
 import pdfFontsDefault from 'pdfmake/build/vfs_fonts'
 
@@ -49,6 +50,8 @@ import { useConfig } from '../../context/ConfigContext'
 import { AlertIcon, ClipboardIcon, DownloadIcon } from '../../components/icons'
 import { MESES_LARGOS, CATEGORIAS, contDe, type PanelReal } from '../dashboard/semforo'
 import { bytesHumanos, descargarConAuth, paginadoCompleto, volcar } from './descargas'
+import { useAuth } from '../../context/AuthContext'
+import { coberturasPorArea, docBomberosPdf } from './bomberosPdf'
 
 interface InspeccionReal {
   id: number
@@ -64,7 +67,7 @@ interface InspeccionReal {
   tiene_foto: boolean
 }
 
-type Accion = 'idle' | 'xlsx' | 'pdf' | 'json'
+type Accion = 'idle' | 'xlsx' | 'pdf' | 'bomberos' | 'json'
 
 function mesActual(): string {
   const d = new Date()
@@ -90,6 +93,7 @@ function fechaHora(iso: string): string {
 
 export default function ExportPage() {
   const { config } = useConfig()
+  const { usuario } = useAuth()
   const [mes, setMes] = useState(mesActual)
   const [accion, setAccion] = useState<Accion>('idle')
   const [estado, setEstado] = useState<string | null>(null)
@@ -106,6 +110,48 @@ export default function ExportPage() {
       setEstado(`XLSX descargado (${bytesHumanos(bytes)}).`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo descargar el XLSX.')
+      setEstado(null)
+    } finally {
+      setAccion('idle')
+    }
+  }
+
+  /** Criterio 11: informe Bomberos/Auditoría — cobertura por área + firmas + QR agregado. */
+  async function generarBomberos() {
+    setAccion('bomberos')
+    setError(null)
+    setEstado('Generando informe para Bomberos…')
+    try {
+      const [panel, ext] = await Promise.all([
+        api.get<PanelReal>('/alerts/panel'),
+        paginadoCompleto<{ tag: string; ubicacion: string; metadata?: Record<string, unknown> | null }>('/extinguishers'),
+      ])
+      const coberturas = coberturasPorArea(panel, ext)
+      const rechazosAbiertos = panel.negro.map((r) => ({
+        tag: r.tag,
+        ubicacion: r.ubicacion,
+        motivo: String((r as unknown as { metadata?: Record<string, string> }).metadata?.motivo_rechazo ?? 'falla crítica — requiere reemplazo'),
+      }))
+      let qr: string | null = null
+      try {
+        qr = await QRCode.toDataURL(`${typeof window !== 'undefined' ? window.location.origin : ''}/planta?periodo=${encodeURIComponent(mes)}`, { margin: 1, width: 240 })
+      } catch { qr = null }
+      const dd = docBomberosPdf({
+        appName: config.appName || 'Brigada NFPA 10',
+        periodo: etiquetaMes,
+        generado: fechaHora(new Date().toISOString()),
+        coberturas,
+        rechazosAbiertos,
+        inspectorNombre: usuario?.nombre || usuario?.usuario || 'Inspector de brigada',
+        jefeBrigadaNombre: config.jefeBrigada || 'Jefe de Brigada',
+        qrDataUrl: qr,
+      })
+      asegurarFuentes()
+      const blob = await crearPdf(dd)
+      volcar(blob, `bomberos-${mes}.pdf`)
+      setEstado(`Informe Bomberos descargado (${coberturas.length} áreas, ${rechazosAbiertos.length} rechazos abiertos, QR ${qr ? 'incluido' : 'omitido'}).`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo generar el informe de Bomberos.')
       setEstado(null)
     } finally {
       setAccion('idle')
@@ -282,6 +328,16 @@ export default function ExportPage() {
         >
           <ClipboardIcon size={22} className="text-primary" />
           {accion === 'pdf' ? 'Generando PDF…' : 'PDF informe mensual'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void generarBomberos()}
+          disabled={ocupado}
+          aria-busy={accion === 'bomberos'}
+          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold hover:bg-bg2 disabled:opacity-60"
+        >
+          <AlertIcon size={22} className="text-err" />
+          {accion === 'bomberos' ? 'Generando informe…' : 'PDF informe Bomberos'}
         </button>
         <button
           type="button"

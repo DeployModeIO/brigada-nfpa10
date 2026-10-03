@@ -10,6 +10,7 @@ router.get('/public-config', async (req, res, next) => {
     const s = await loadSettings();
     res.json({
       appName: s.appName,
+      jefeBrigada: s.jefeBrigada,
       logoDataUrl: s.logoDataUrl,
       brand: s.brand,
       temaDefault: s.temaDefault,
