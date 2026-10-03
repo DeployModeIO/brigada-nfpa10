@@ -88,9 +88,13 @@ test('A1: change-password + CRUD admin + revocación invalida tokens emitidos', 
   assert.equal(alta.status, 201);
   assert.ok(!('password_hash' in alta.body));
   const tk = (await login('sec-brig', 'ClaveSegura1!')).token;
-  assert.equal((await api('/extinguishers?size=1', {}, tk)).status, 200);
+  // gate A1 (2ª auditoría): la clave provisional bloquea rutas normales
+  const gate = await api('/extinguishers?size=1', {}, tk);
+  assert.equal(gate.status, 403);
+  assert.equal(gate.body.error, 'password_change_required');
   const cp = await api('/auth/change-password', { method: 'POST', body: JSON.stringify({ password_actual: 'ClaveSegura1!', password_nueva: 'OtraClaveSegura2!' }) }, tk);
   assert.equal(cp.status, 200);
+  assert.equal((await api('/extinguishers?size=1', {}, tk)).status, 200, 'tras el cambio, el gate se levanta');
   const rev = await api(`/admin/users/${alta.body.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'revocado' }) }, admin);
   assert.equal(rev.status, 200);
   const after = await api('/extinguishers?size=1', {}, tk);
@@ -102,4 +106,23 @@ test('M2: csvCell y SEG neutralizan fórmulas en reemplazos.csv e informe xlsx',
   assert.equal(csvCell('=1+2'), "'=1+2");
   assert.equal(csvCell('+3'), "'+3");
   assert.deepEqual(SEG({ tag: '@x', n: 1 }), { tag: "'@x", n: 1 });
+});
+
+// ───────────── A1 gate (2ª auditoría) ─────────────
+test('A1 gate: must_change_password bloquea rutas salvo /auth/change-password | /auth/me | /auth/logout', async () => {
+  const admin = (await login('admin', 'Br1g@d4!n')).token;
+  const alta = await api('/admin/users', { method: 'POST', body: JSON.stringify({ username: 'sec-gate-brig', password: 'ClaveSegura1!', nombre: 'Gate', rol: 'inspector' }) }, admin);
+  assert.equal(alta.status, 201);
+  const lg = await login('sec-gate-brig', 'ClaveSegura1!');
+  assert.equal(lg.user.must_change_password, true, 'alta con clave provisional');
+  const tk = lg.token;
+  const bloqueado = await api('/extinguishers?size=1', {}, tk);
+  assert.equal(bloqueado.status, 403);
+  assert.equal(bloqueado.body.error, 'password_change_required');
+  assert.equal((await api('/auth/me', {}, tk)).status, 200, '/auth/me sigue disponible para leer la sesión');
+  const cp = await api('/auth/change-password', { method: 'POST', body: JSON.stringify({ password_actual: 'ClaveSegura1!', password_nueva: 'GatePass2!' }) }, tk);
+  assert.equal(cp.status, 200, 'change-password NO lo bloquea el gate');
+  const lg2 = await login('sec-gate-brig', 'GatePass2!');
+  assert.equal(lg2.user.must_change_password, false);
+  assert.equal((await api('/extinguishers?size=1', {}, lg2.token)).status, 200, 'tras el cambio, rutas habilitadas');
 });

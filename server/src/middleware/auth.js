@@ -3,6 +3,8 @@
 //  - A1: revocación EFECTIVA — la autenticación verifica el estado del usuario en BD en
 //    cada request; user.status='revocado' (o activo=0) invalida de inmediato tokens ya
 //    emitidos. El rol se refresca desde BD (degradar un rol surte al instante).
+//  - A1 (gate 2ª auditoría): must_change_password=1 bloquea toda ruta que no sea
+//    /auth/change-password | /auth/me | /auth/logout (403 password_change_required).
 //  - C2 (checklist-flota, inocuo para el resto de la línea): los tokens de asistencia de
 //    chofer (rol 'chofer' / scope 'asistencia') quedan RECHAZADOS en toda ruta
 //    autenticada; su único destino es POST /public/inspecciones (que los valida aparte).
@@ -47,6 +49,15 @@ async function auth(req, res, next) {
     payload.must_change_password = Number(u.must_change_password) === 1;
   }
   req.user = payload;
+  // A1 (2ª auditoría 03/10/2026): gate de contraseña provisional — con
+  // must_change_password=1 SOLO se sirve la autogestión de la clave; cualquier otra
+  // ruta responde 403 {error:'password_change_required'} hasta el cambio efectivo.
+  if (payload.must_change_password) {
+    const ruta = String(req.originalUrl || req.path || '/').split('?')[0];
+    if (!/\/auth\/(change-password|me|logout)$/.test(ruta)) {
+      return res.status(403).json({ error: 'password_change_required', msg: 'Debes cambiar tu contraseña antes de usar otras rutas' });
+    }
+  }
   return next();
 }
 
