@@ -46,4 +46,16 @@ const config = {
   espejoIntervalMs: parseInt(process.env.ESPEJO_INTERVAL_MS || '30000', 10)
 };
 
+
+// ─── C1 (fixes seguridad 03/10/2026) ───────────────────────────────────────────
+// En producción está PROHIBIDO el secreto del repositorio: AUTH_SECRET debe venir
+// del entorno (docker run / compose) con un valor aleatorio, nunca bakeado.
+const SECRETOS_PROHIBIDOS = ['dev-secret-cambiar', 'REVISAR-ANTES-DE-PRESENTACION'];
+if (config.env === 'production') {
+  const s = (process.env.AUTH_SECRET || '').trim();
+  if (!s || SECRETOS_PROHIBIDOS.includes(s)) {
+    throw new Error("[config] NODE_ENV=production exige AUTH_SECRET aleatorio, distinto del default del repositorio. Genere uno con: openssl rand -hex 32 y paselo por docker run o compose.");
+  }
+}
+
 module.exports = config;

@@ -12,6 +12,9 @@ const URL = `http://localhost:${PORT}`;
 const APP_DIR = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '..');
 
 // Defaults ANTES de cargar src/config.js (toda variable de entorno existente tiene prioridad).
+// C1 (fixes 03/10/2026): secreto de sesión ALEATORIO en runtime — no queda bakeado
+// en el binario ni en el repositorio, y satisface el guard de producción de config.js.
+process.env.AUTH_SECRET = process.env.AUTH_SECRET || require('crypto').randomBytes(32).toString('hex');
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 process.env.PORT = String(PORT);
 process.env.SERVE_CLIENT = '1';

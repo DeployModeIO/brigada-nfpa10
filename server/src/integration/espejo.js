@@ -94,6 +94,10 @@ async function flush() {
         const mapeos = await getMapeos();
         const m = mapeos.find((x) => x.origen === p.origen);
         if (!m) { await db.run('UPDATE espejo_pendencias SET estado=\'enviado\' WHERE id=?', [p.id]); resumen.enviados += 1; continue; }
+        // A4 (fixes 03/10/2026): re-validar IDENT_RE sobre destino/columnas ANTES de
+        // construir el SQL — defensa en profundidad si la config se editó fuera de banda.
+        const errMapeo = validarMapeos([m]);
+        if (errMapeo) throw new Error(`mapeo rechazado por re-validaci\u00f3n: ${errMapeo}`);
         const reg = JSON.parse(p.data || '{}');
         const pares = Object.entries(m.columnas).filter(([local]) => reg[local] !== undefined);
         if (!pares.length) throw new Error('el mapeo no produce columnas');

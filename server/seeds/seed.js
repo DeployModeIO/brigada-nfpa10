@@ -127,13 +127,18 @@ async function runSeed() {
   const now = new Date().toISOString();
 
   let created = 0, skipped = 0;
+  // C1/A1 (fixes 03/10/2026): en producción NUNCA las credenciales del README.
+  // Password aleatoria por usuario, impresa UNA vez como [SETUP]; en BD solo el hash.
+  const credencialesRandom = process.env.NODE_ENV === 'production' && process.env.DEMO_SEED !== '1';
   for (const u of USERS) {
     const exists = await db.get('SELECT id FROM users WHERE username = ?', [u.username]);
     if (exists) { skipped++; continue; }
+    const pass = credencialesRandom ? require('crypto').randomBytes(12).toString('base64url') : u.password;
     await db.run(
-      'INSERT INTO users (username, password_hash, nombre, rol, activo, created_at) VALUES (?, ?, ?, ?, 1, ?)',
-      [u.username, bcrypt.hashSync(u.password, 10), u.nombre, u.rol, now]
+      'INSERT INTO users (username, password_hash, nombre, rol, activo, status, must_change_password, created_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+      [u.username, bcrypt.hashSync(pass, 10), u.nombre, u.rol, 'activo', credencialesRandom ? 1 : 0, now]
     );
+    if (credencialesRandom) console.log(`[SETUP] ${u.username} password: ${pass}`);
     created++;
   }
   console.log(`[seed] usuarios: ${created} creados, ${skipped} existentes (admin/inspector/supervisor)`);

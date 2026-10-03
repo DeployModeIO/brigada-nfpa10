@@ -4,9 +4,13 @@
 // escapa CSV. Función PURA para unit test; la ruta /alerts/replacement-list.csv la usa.
 const DIA_MS = 86400000;
 
+// M2 (fixes seguridad 03/10/2026): neutraliza CSV formula injection. Un valor que
+// comienza con = + - @ TAB o CR es interpretado como fórmula por Excel/Sheets: se
+// prefija con apóstrofo ANTES de escapar el separador.
 function csvCell(v) {
-  const s = v === null || v === undefined ? '' : String(v);
-  return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  let s = v === null || v === undefined ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\r\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
 // Área = prefijo de ubicacion antes de " (" o " - " (formato del seed/importación),

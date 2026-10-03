@@ -6,6 +6,16 @@ const { auth } = require('../middleware/auth');
 const { estadoCalculado } = require('../lib/estado');
 const nfpa = require('../lib/nfpa');
 
+// M2 (fixes 03/10/2026): ExcelJS trata los strings que empiezan por = + - @ como
+// FÓRMULA. Toda celda de texto de origen usuario pasa por SEG antes de addRow.
+function SEG(obj) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) ? "'" + v : v;
+  }
+  return out;
+}
+
 // Firma de versión de la planilla exportada (criterio 10): cambios de columnas o de
 // reglas NFPA suben el número; el auditor puede atar el archivo a esta definición.
 const EXPORT_VERSION = 'brigada-nfpa10/xlsx-v1.1 (NFPA10 §7.2, reglas nfpa_reglas)';
@@ -48,7 +58,7 @@ router.get('/export/extinguishers.xlsx', auth, async (req, res, next) => {
     const now = Date.now();
     for (const r of rows) {
       const est = estadoCalculado(r, now, reglas);
-      const added = ws.addRow({
+      const added = ws.addRow(SEG({
         tag: r.tag, ubicacion: r.ubicacion, tipo: r.tipo, capacidad_l: r.capacidad_l,
         presion_bar: r.presion_bar, fecha_fabricacion: r.fecha_fabricacion,
         agente: r.agente || nfpa.agenteDe(r),
@@ -56,7 +66,7 @@ router.get('/export/extinguishers.xlsx', auth, async (req, res, next) => {
         venc_recarga: r.venc_recarga || '', venc_hidro: r.venc_hidro || '',
         estado_inspeccion: r.estado_inspeccion, rechazado: Number(r.rechazado) ? 'SÍ' : 'no',
         estadoCalculado: est, lat: r.lat, lng: r.lng, notas: r.notas
-      });
+      }));
       added.getCell('estadoCalculado').font = {
         color: { argb: est === 'rechazado' ? 'FFFFFFFF' : COLOR[est] || 'FF000000' },
         bold: true
@@ -64,7 +74,7 @@ router.get('/export/extinguishers.xlsx', auth, async (req, res, next) => {
       if (est === 'rechazado') added.getCell('estadoCalculado').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
     }
     // Fila de firma de versión (criterio 10).
-    const firma = ws.addRow({ tag: EXPORT_VERSION, ubicacion: `generado ${new Date().toISOString()}` });
+    const firma = ws.addRow(SEG({ tag: EXPORT_VERSION, ubicacion: `generado ${new Date().toISOString()}` }));
     firma.getCell('tag').font = { italic: true, color: { argb: 'FF6B7280' } };
 
     const stamp = new Date().toISOString().slice(0, 10);
@@ -76,3 +86,4 @@ router.get('/export/extinguishers.xlsx', auth, async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.SEG = SEG;

@@ -16,13 +16,14 @@ COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 FROM node:22-bookworm-slim AS runtime
+# C1 (fixes 03/10/2026): AUTH_SECRET ya NO va en la imagen. Debe pasarse en
+# docker run / compose (openssl rand -hex 32). NODE_ENV=production lo EXIGE.
 ENV NODE_ENV=production \
     PORT=3200 \
     SERVE_CLIENT=1 \
     DB_DRIVER=sqlite \
     DB_PATH=/data/brigada.db \
-    CLIENT_DIST=/app/client/dist \
-    AUTH_SECRET=REVISAR-ANTES-DE-PRESENTACION
+    CLIENT_DIST=/app/client/dist
 WORKDIR /app
 COPY server/ ./
 COPY --from=serverbuild /app/server/node_modules ./node_modules

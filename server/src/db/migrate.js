@@ -140,7 +140,18 @@ const MIGRATIONS = [
       "ALTER TABLE inspecciones ADD COLUMN habilitacion VARCHAR(32) NOT NULL DEFAULT ''",
       'ALTER TABLE inspecciones ADD COLUMN motivo_rechazo {TEXT}'
     ]
-  }
+  },
+  {
+    // A1 (fixes seguridad 03/10/2026): must_change_password + estado revocable de cuenta.
+    version: '005_users_seguridad',
+    tables: {},
+    columnas: {
+      users: [
+        ['must_change_password', 'INTEGER NOT NULL DEFAULT 0'],
+        ['status', "VARCHAR(16) NOT NULL DEFAULT 'activo'"]
+      ]
+    }
+  },
 ];
 
 async function migrate() {
@@ -150,8 +161,18 @@ async function migrate() {
   for (const m of MIGRATIONS) {
     const done = await db.get('SELECT version FROM schema_migrations WHERE version = ?', [m.version]);
     if (done) continue;
-    for (const sql of Object.values(m.tables)) {
+    for (const sql of Object.values(m.tables || {})) {
       await db.exec(d(dialect, sql));
+    }
+    // A1 (fixes 03/10/2026): columnas nuevas idempotentes sobre tablas ya creadas.
+    for (const [tabla, cols] of Object.entries(m.columnas || {})) {
+      for (const [col, ddl] of cols) {
+        try { await db.exec(`ALTER TABLE ${tabla} ADD COLUMN ${col} ${ddl}`); }
+        catch (e) {
+          const msg = String((e && e.message) || '').toLowerCase();
+          if (!(msg.includes('duplicate') || msg.includes('already exists'))) throw e;
+        }
+      }
     }
     for (const sql of (m.alter || [])) {
       try { await db.exec(d(dialect, sql)); }
