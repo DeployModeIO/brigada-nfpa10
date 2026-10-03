@@ -102,14 +102,15 @@ interface JwtPayload {
   nombre: string
   rol: string
   exp: number
+  must_change_password?: number
 }
 
 // ---------- usuarios demo (cualquier contraseña válida) ----------
 
 const USERS: JwtPayload[] = [
-  { id: 1, username: 'admin', nombre: 'Admin Brigada', rol: 'admin', exp: 0 },
-  { id: 2, username: 'inspector', nombre: 'Inspectora de Campo', rol: 'inspector', exp: 0 },
-  { id: 3, username: 'supervisor', nombre: 'Supervisor de Seguridad', rol: 'supervisor', exp: 0 },
+  { id: 1, username: 'admin', nombre: 'Admin Brigada', rol: 'admin', exp: 0, must_change_password: 0 },
+  { id: 2, username: 'inspector', nombre: 'Inspectora de Campo', rol: 'inspector', exp: 0, must_change_password: 0 },
+  { id: 3, username: 'supervisor', nombre: 'Supervisor de Seguridad', rol: 'supervisor', exp: 0, must_change_password: 0 },
 ]
 
 // ---------- helpers de tiempo/base64 ----------
@@ -370,7 +371,7 @@ function defaultSettings(): Settings {
     temaDefault: 'light',
     webhookUrl: '',
     webhookApi: '',
-    brand: { primary: '#0ea5e9', ok: '#22c55e', warn: '#eab308', err: '#ef4444', info: '#3b82f6' },
+    brand: { primary: '#0369a1', ok: '#047857', warn: '#92400e', err: '#b91c1c', info: '#0369a1' },
     configTipos: ['PQS ABC', 'CO2', 'AGUA a presión', 'BC', 'Clase K (cocina)'],
     configUbicaciones: ['Cocina industrial', 'Almacén A', 'Almacén B', 'Almacén C', 'Oficinas', 'Laboratorio', 'Taller mecánico', 'Recibimiento', 'Planta eléctrica', 'Vehículos'],
   }
@@ -634,12 +635,27 @@ async function handleDemo(path: string, init: RequestInit | undefined): Promise<
     const u = USERS.find((x) => x.username === String(body.username ?? '').trim().toLowerCase())
     if (!u) return err(401, 'invalid_credentials', 'Credenciales incorrectas')
     const payload = { ...u, exp: Math.floor(Date.now() / 1000) + 10 * 365 * 86400 }
-    return json(200, { token: crearToken(payload), user: { id: u.id, username: u.username, nombre: u.nombre, rol: u.rol } })
+    return json(200, { token: crearToken(payload), user: { id: u.id, username: u.username, nombre: u.nombre, rol: u.rol, must_change_password: Number(u.must_change_password) === 1 } })
   }
   if (method === 'GET' && rest === '/auth/me') {
     const e = autenticado()
     if (e) return e
-    return json(200, { user: { id: user!.id, username: user!.username, nombre: user!.nombre, rol: user!.rol } })
+    const su = USERS.find((x) => x.username === user!.username)
+    return json(200, { user: { id: user!.id, username: user!.username, nombre: user!.nombre, rol: user!.rol, must_change_password: Number(su?.must_change_password) === 1 } })
+  }
+  // Espejo del gate A1 del server: los seeds demo traen must_change_password=0, así que la
+  // demo jamás responde 403 password_change_required (el flujo de demo no se bloquea).
+  if (method === 'POST' && rest === '/auth/change-password') {
+    const e = autenticado()
+    if (e) return e
+    const actual = typeof body.password_actual === 'string' ? body.password_actual : ''
+    const nueva = typeof body.password_nueva === 'string' ? body.password_nueva : ''
+    if (!actual) return err(400, 'bad_request', 'password_actual requerida')
+    if (nueva.length < 8 || nueva.length > 128) return err(400, 'bad_request', 'password_nueva: mínimo 8 caracteres')
+    if (actual === nueva) return err(400, 'bad_request', 'La clave nueva debe ser distinta a la actual')
+    const su2 = USERS.find((x) => x.username === user!.username)
+    if (su2) su2.must_change_password = 0
+    return json(200, { ok: true, msg: 'Contraseña actualizada' })
   }
 
   // --- pública ---

@@ -11,6 +11,7 @@ function feature<T extends ComponentType>(name: string, loader: () => Promise<{ 
 }
 
 const LoginPage = feature('auth', () => import('./features/auth/LoginPage'))
+const CambioPasswordPage = feature('auth', () => import('./features/auth/CambioPasswordPage'))
 const DashboardPage = feature('dashboard', () => import('./features/dashboard/DashboardPage'))
 const ScannerPage = feature('scanner', () => import('./features/scanner/ScannerPage'))
 const InspectionFormPage = feature('inspection', () => import('./features/inspection/InspectionFormPage'))
@@ -30,8 +31,9 @@ function Cargando() {
 
 /** Guard de auth: sin token → /login preservando el destino (deep-linking). */
 function RequireAuth({ children }: { children: JSX.Element }) {
-  const { autenticado, cargando } = useAuth()
+  const { autenticado, cargando, passwordRequerida } = useAuth()
   if (cargando) return <Cargando />
+  if (passwordRequerida) return <Navigate to="/cambio-password" replace />
   if (!autenticado) return <Navigate to="/login" replace />
   return children
 }
@@ -49,6 +51,7 @@ function Shell() {
 /** Array exportado para verificación en tests smoke. */
 export const routes: RouteObject[] = [
   { path: '/login', element: <Suspense fallback={<Cargando />}><LoginPage /></Suspense> },
+  { path: '/cambio-password', element: <Suspense fallback={<Cargando />}><CambioPasswordPage /></Suspense> },
   {
     path: '/',
     element: <Shell />,

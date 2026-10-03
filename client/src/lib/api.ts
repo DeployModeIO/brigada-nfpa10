@@ -81,7 +81,14 @@ async function request<T>(method: string, path: string, opts: RequestOpts = {}):
     throw new ApiError(0, 'Sin conexión con el servidor', e)
   }
 
+  const p0 = path.split('?')[0]
   if (res.status === 401) {
+    // Gate A1 client: login y cambio de clave muestran el msg del server sin logout global.
+    if (p0 === '/auth/login' || p0 === '/auth/change-password') {
+      const body = (await res.json().catch(() => null)) as { msg?: string; message?: string } | null
+      const def = p0 === '/auth/change-password' ? 'La contraseña actual no coincide' : 'Credenciales incorrectas'
+      throw new ApiError(401, body?.msg || body?.message || def, body ?? undefined)
+    }
     clearToken()
     window.dispatchEvent(new Event('nfpa:unauthorized'))
     throw new ApiError(401, 'Sesión expirada')
@@ -96,11 +103,24 @@ async function request<T>(method: string, path: string, opts: RequestOpts = {}):
       data = text
     }
   }
+  // A1 (gate server must_change_password): 403 password_change_required → limpiar token y
+  // encauzar a /cambio-password (RequireAuth escucha el evento). /auth/change-password queda
+  // excluida para no re-disparar el gate desde la propia página de cambio (sin bucles).
+  if (
+    res.status === 403 &&
+    p0 !== '/auth/change-password' &&
+    data &&
+    typeof data === 'object' &&
+    (data as { error?: unknown }).error === 'password_change_required'
+  ) {
+    clearToken()
+    window.dispatchEvent(new Event('nfpa:password-required'))
+  }
+
   if (!res.ok) {
+    const obj = data && typeof data === 'object' ? (data as { message?: unknown; msg?: unknown }) : null
     const msg =
-      data && typeof data === 'object' && 'message' in data
-        ? String((data as { message: unknown }).message)
-        : `Error HTTP ${res.status}`
+      obj?.message != null ? String(obj.message) : obj?.msg != null ? String(obj.msg) : `Error HTTP ${res.status}`
     throw new ApiError(res.status, msg, data)
   }
   return data as T

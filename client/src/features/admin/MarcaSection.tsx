@@ -27,7 +27,7 @@ export default function MarcaSection({ settings, esAdmin, onGuardado }: { settin
   const [appName, setAppName] = useState('')
   const [jefeBrigada, setJefeBrigada] = useState('')
   const [logoDataUrl, setLogoDataUrl] = useState('')
-  const [brand, setBrand] = useState<Record<CampoBrand, string>>({ primary: '#3b82f6', ok: '#10b981', warn: '#f59e0b', err: '#ef4444', info: '#38bdf8' })
+  const [brand, setBrand] = useState<Record<CampoBrand, string>>({ primary: '#0369a1', ok: '#047857', warn: '#92400e', err: '#b91c1c', info: '#0369a1' })
   const [avisoLogo, setAvisoLogo] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [ok, setOk] = useState<string | null>(null)

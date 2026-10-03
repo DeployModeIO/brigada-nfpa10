@@ -11,11 +11,12 @@ interface Errores {
 }
 
 export default function LoginPage() {
-  const { login, autenticado, cargando } = useAuth()
+  const { login, autenticado, cargando, passwordRequerida } = useAuth()
   const { config } = useConfig()
   const navigate = useNavigate()
   const location = useLocation()
-  const desde = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/'
+  const desde = passwordRequerida ? '/cambio-password' : ((location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/')
+  const mensaje = (location.state as { mensaje?: string } | null)?.mensaje ?? null
 
   const [usuario, setUsuario] = useState('')
   const [clave, setClave] = useState('')
@@ -43,8 +44,9 @@ export default function LoginPage() {
     if (Object.keys(errs).length > 0) return
     setEnviando(true)
     try {
-      await login(usuario.trim(), clave)
-      navigate(desde, { replace: true })
+      const { debeCambiarClave } = await login(usuario.trim(), clave)
+      // Gate A1: con contraseña provisional el destino obligatorio es /cambio-password.
+      navigate(debeCambiarClave ? '/cambio-password' : desde, { replace: true })
     } catch (err) {
       setErrorGeneral(err instanceof Error ? err.message : 'No se pudo iniciar sesión.')
     } finally {
@@ -116,6 +118,12 @@ export default function LoginPage() {
           />
           {campoError(errores.clave, 'clave-error')}
         </div>
+
+        {mensaje && (
+          <p role="status" className="rounded-lg border border-ok bg-ok/10 px-3 py-2 text-sm text-ok">
+            {mensaje}
+          </p>
+        )}
 
         {errorGeneral && (
           <p role="alert" className="rounded-lg border border-err bg-err/10 px-3 py-2 text-sm text-err">

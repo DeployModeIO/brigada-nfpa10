@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, clearToken, getToken, setToken, type Usuario } from '../lib/api'
 import { setSetting } from '../lib/offline'
 
-interface JwtUserPayload { id: number; username: string; nombre: string; rol: string }
+interface JwtUserPayload { id: number; username: string; nombre: string; rol: string; must_change_password?: number | boolean }
 
 /** Decodifica el payload del JWT (sin verificar firma: solo para pintar la sesión offline). */
 function decodificarToken(tok: string): Usuario | null {
@@ -23,7 +23,8 @@ export interface AuthContextValue {
   usuario: Usuario | null
   cargando: boolean
   autenticado: boolean
-  login: (usuario: string, clave: string) => Promise<void>
+  passwordRequerida: boolean
+  login: (usuario: string, clave: string) => Promise<{ debeCambiarClave: boolean }>
   logout: () => void
 }
 
@@ -37,15 +38,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return t ? decodificarToken(t) : null
   })
   const [cargando, setCargando] = useState<boolean>(() => Boolean(getToken()))
+  const [passwordRequerida, setPasswordRequerida] = useState(false)
 
   // 401 desde el cliente HTTP → sesión fuera
   useEffect(() => {
     const onUnauthorized = () => {
       setTokenState(null)
       setUsuario(null)
+      setPasswordRequerida(false)
     }
+    // Gate A1: 403 password_change_required desde el interceptor de api.ts.
+    const onPasswordRequired = () => setPasswordRequerida(true)
     window.addEventListener('nfpa:unauthorized', onUnauthorized)
-    return () => window.removeEventListener('nfpa:unauthorized', onUnauthorized)
+    window.addEventListener('nfpa:password-required', onPasswordRequired)
+    return () => {
+      window.removeEventListener('nfpa:unauthorized', onUnauthorized)
+      window.removeEventListener('nfpa:password-required', onPasswordRequired)
+    }
   }, [])
 
   // Validar token existente al arrancar (best-effort; si el server no responde, deja entrar offline)
@@ -57,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((r) => {
         if (vivo && r?.user) {
           setUsuario({ id: r.user.id, usuario: r.user.username, nombre: r.user.nombre, rol: r.user.rol })
+          // El server refresca must_change_password desde BD: cubre flag puesto tras el login.
+          setPasswordRequerida(Number(r.user.must_change_password) === 1)
         }
       })
       .catch(() => {
@@ -74,13 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (usuario: string, clave: string) => {
     const res = await api.post<{
       token: string
-      user: { id: number; username: string; nombre: string; rol: string }
+      user: { id: number; username: string; nombre: string; rol: string; must_change_password?: number | boolean }
     }>('/auth/login', { username: usuario, password: clave })
     setToken(res.token)
     // espejo en IDB para que el service worker pueda sincronizar la cola
     void setSetting('token', res.token).catch(() => {})
     setUsuario({ id: res.user.id, usuario: res.user.username, nombre: res.user.nombre, rol: res.user.rol })
     setTokenState(res.token)
+    // Gate A1: con must_change_password=1 el server solo sirve /auth/change-password|/auth/me|/auth/logout.
+    const debeCambiarClave = Number(res.user.must_change_password) === 1
+    setPasswordRequerida(debeCambiarClave)
+    return { debeCambiarClave }
   }, [])
 
   const logout = useCallback(() => {
@@ -88,11 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void setSetting('token', null).catch(() => {})
     setUsuario(null)
     setTokenState(null)
+    setPasswordRequerida(false)
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, usuario, cargando, autenticado: Boolean(token), login, logout }),
-    [token, usuario, cargando, login, logout],
+    () => ({ token, usuario, cargando, autenticado: Boolean(token), passwordRequerida, login, logout }),
+    [token, usuario, cargando, passwordRequerida, login, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
