@@ -1,0 +1,72 @@
+import { Suspense, lazy, type ComponentType } from 'react'
+import { Navigate, createBrowserRouter, createHashRouter, type RouteObject } from 'react-router-dom'
+import AppLayout from './components/AppLayout'
+import { useAuth } from './context/AuthContext'
+import { DEMO_MODE } from './lib/api'
+
+/** lazy() por feature: cada página se carga en su propio chunk (code-splitting real). */
+function feature<T extends ComponentType>(name: string, loader: () => Promise<{ default: T }>) {
+  void name
+  return lazy(loader)
+}
+
+const LoginPage = feature('auth', () => import('./features/auth/LoginPage'))
+const DashboardPage = feature('dashboard', () => import('./features/dashboard/DashboardPage'))
+const ScannerPage = feature('scanner', () => import('./features/scanner/ScannerPage'))
+const InspectionFormPage = feature('inspection', () => import('./features/inspection/InspectionFormPage'))
+const AlertsPage = feature('alerts', () => import('./features/alerts/AlertsPage'))
+const ExportPage = feature('export', () => import('./features/export/ExportPage'))
+const AdminSettingsPage = feature('admin', () => import('./features/admin/AdminSettingsPage'))
+const ExtinguisherListPage = feature('extinguishers', () => import('./features/extinguishers/ExtinguisherListPage'))
+
+function Cargando() {
+  return (
+    <div role="status" aria-live="polite" className="flex min-h-dvh items-center justify-center bg-bg text-text2">
+      Cargando…
+    </div>
+  )
+}
+
+/** Guard de auth: sin token → /login preservando el destino (deep-linking). */
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const { autenticado, cargando } = useAuth()
+  if (cargando) return <Cargando />
+  if (!autenticado) return <Navigate to="/login" replace />
+  return children
+}
+
+function Shell() {
+  return (
+    <RequireAuth>
+      <Suspense fallback={<Cargando />}>
+        <AppLayout />
+      </Suspense>
+    </RequireAuth>
+  )
+}
+
+/** Array exportado para verificación en tests smoke. */
+export const routes: RouteObject[] = [
+  { path: '/login', element: <Suspense fallback={<Cargando />}><LoginPage /></Suspense> },
+  {
+    path: '/',
+    element: <Shell />,
+    children: [
+      { index: true, element: <DashboardPage /> },
+      { path: 'escanear', element: <ScannerPage /> },
+      { path: 'inspecciones', element: <ExtinguisherListPage /> },
+      { path: 'buscar', element: <ExtinguisherListPage /> },
+      { path: 'inspeccion/:tag', element: <InspectionFormPage /> },
+      { path: 'alertas', element: <AlertsPage /> },
+      { path: 'export', element: <ExportPage /> },
+      { path: 'admin', element: <AdminSettingsPage /> },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+]
+
+/** Crear el router solo en navegador (los tests smoke node --test importan `routes` sin DOM). */
+export function crearRouter() {
+  // DEMO (file://): hash router — pushState de rutas no funciona fiable desde file://.
+  return DEMO_MODE ? createHashRouter(routes) : createBrowserRouter(routes)
+}

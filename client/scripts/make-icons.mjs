@@ -1,0 +1,20 @@
+import { writeFileSync, mkdirSync } from 'node:fs'
+import sharp from 'sharp'
+
+const SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#111827"/>
+  <path d="M256 64 128 112v96c0 96 54 152 128 192 74-40 128-96 128-192v-96L256 64Z"
+        fill="none" stroke="#3b82f6" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M256 176c34 40 52 62 52 92a52 52 0 1 1-104 0c0-30 18-52 52-92Z"
+        fill="#10b981"/>
+  <text x="256" y="430" text-anchor="middle" font-family="monospace" font-size="56" font-weight="bold" fill="#f9fafb">NFPA 10</text>
+</svg>`
+
+mkdirSync('public/icons', { recursive: true })
+writeFileSync('public/icons/icon.svg', SVG.trim())
+
+for (const size of [192, 512]) {
+  await sharp(Buffer.from(SVG)).resize(size, size).png().toFile(`public/icons/icon-${size}.png`)
+  console.log(`icon-${size}.png generado`)
+}

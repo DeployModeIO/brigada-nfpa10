@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Mapeo de tokens semánticos a utilidades Tailwind v4 (inline: resuelve en runtime,
+ * permite overridde de brand desde /public-config sin recompilar). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-primary: var(--primary);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+  --color-info: var(--info);
+  --color-ring: var(--ring);
+  --color-border: var(--border);
+  --color-on-primary: var(--on-primary);
+  --font-sans: var(--font-body);
+}
+
+@layer base {
+  html {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-body);
+    line-height: var(--line-body);
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  #root {
+    min-height: 100dvh;
+  }
+}
+
+/* Área segura inferior para NAV en móviles con notch */
+.pb-safe {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}

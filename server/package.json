@@ -1,0 +1,48 @@
+{
+  "name": "brigada-nfpa10-server",
+  "version": "1.0.0",
+  "description": "API de inspección de extintores NFPA 10 para brigadas (Express + multi-BD)",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "seed": "node seeds/seed.js",
+    "test:smoke": "node scripts/smoke.js",
+    "package:demo": "pkg --targets node22-linux-x64 --output bin/BrigadaDemo-linux-x64 . && pkg --targets node22-win-x64 --output bin/BrigadaDemo-win-x64.exe ."
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "optionalDependencies": {
+    "mysql2": "^3.11.5",
+    "pg": "^8.13.1"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "bin": "scripts/brigada-demo.js",
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.23.0"
+  },
+  "pkg": {
+    "assets": [
+      "dist-portable/**/*",
+      "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+    ],
+    "scripts": [
+      "src/db/sqlite.js",
+      "src/db/postgres.js",
+      "src/db/mysql.js"
+    ],
+    "outputPath": "bin"
+  }
+}

@@ -1,0 +1,5 @@
+node_modules/
+data/
+*.log
+.env
+client/v4173.txt
