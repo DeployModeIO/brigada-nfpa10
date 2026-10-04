@@ -139,7 +139,7 @@ export default function IntegracionSection({ esAdmin, soloLectura }: { esAdmin: 
   }
 
   return (
-    <fieldset className="rounded-xl border border-border bg-surface p-4" disabled={soloLectura}>
+    <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4" disabled={soloLectura}>
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
         <PlugIcon size={18} /> Base de datos del cliente
       </legend>

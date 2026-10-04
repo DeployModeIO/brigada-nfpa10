@@ -182,7 +182,56 @@ export default function AlertsPage() {
               Sin extintores en esta categoría.
             </div>
           ) : (
-            <ul role="list" aria-label={`Extintores ${categoria.etiqueta}`} className="flex flex-col gap-2">
+            <>
+            {/* Escritorio (lg+): tabla con cabecera fija */}
+            <div data-testid="tabla-alertas" className="hidden max-h-[64dvh] overflow-auto rounded-xl border border-border bg-surface lg:block">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="sticky top-0 z-10 border-b border-border bg-surface text-left text-text2">
+                    <th scope="col" className="px-4 py-2 font-medium">Tag</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Ubicación</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Tipo</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Cap. (L)</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Próximo vencimiento</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => {
+                    const dias = diasHasta(it.proximo_vencimiento)
+                    return (
+                      <tr key={it.tag} className={`border-b border-border/50 last:border-b-0 ${color === 'negro' ? 'bg-bg2' : ''}`}>
+                        <th scope="row" className="px-4 py-2 text-left font-mono font-semibold text-text">{it.tag}</th>
+                        <td className="max-w-[260px] truncate px-3 py-2">{it.ubicacion}</td>
+                        <td className="px-3 py-2">{it.tipo || '—'}</td>
+                        <td className="px-3 py-2 text-right font-mono">{it.capacidad_l ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono">
+                          {fechaCorta(it.proximo_vencimiento)}
+                          {dias !== null && (
+                            <span className={`ml-2 font-medium ${dias < 0 ? 'text-err' : 'text-warn'}`}>
+                              {dias < 0 ? `atrasado ${Math.abs(dias)} d` : dias === 0 ? 'hoy' : `en ${dias} d`}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/inspeccion/${encodeURIComponent(it.tag)}`)}
+                            aria-label={`Inspeccionar extintor ${it.tag} en ${it.ubicacion}`}
+                            className="flex min-h-10 items-center gap-2 rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-on-primary"
+                          >
+                            <ClipboardIcon size={16} /> Inspeccionar
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Móvil/tablet: tarjetas */}
+            <ul role="list" aria-label={`Extintores ${categoria.etiqueta}`} className="flex flex-col gap-2 lg:hidden">
               {items.map((it) => {
                 const dias = diasHasta(it.proximo_vencimiento)
                 return (
@@ -221,6 +270,7 @@ export default function AlertsPage() {
                 )
               })}
             </ul>
+            </>
           )}
         </>
       )}

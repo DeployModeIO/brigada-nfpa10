@@ -2,13 +2,13 @@
  * MODO DEMO — Mock local del contrato API (server/docs/API.md) sin servidor ni internet.
  * Se instala parcheando window.fetch (ver api.ts): toda URL que empiece por API_BASE se
  * resuelve aquí con latencia simulada de 150 ms y una "BD" en localStorage (clave
- * `brigada_demo_db`, versionada → se re-seedea si cambia la versión).
+ * `nfpa_brigada_demo_db`, versionada → se re-seedea si cambia la versión).
  * Reglas de estado idénticas a server/src/lib/estado.js: +30 d en inspección,
  * falla de ítem crítico (presion_rango/precinto_intacto/manguera_sin_fisuras) ⇒ rechazado.
  * Login demo: usuarios admin/inspector/supervisor — ACEPTA CUALQUIER contraseña.
  */
 
-const DB_KEY = '***'
+const DB_KEY = 'nfpa_brigada_demo_db'
 const DB_VERSION = 2
 const LATENCIA_MS = 150
 

@@ -115,7 +115,7 @@ export default function MarcaSection({ settings, esAdmin, onGuardado }: { settin
   } as CSSProperties
 
   return (
-    <fieldset className="rounded-xl border border-border bg-surface p-4" disabled={guardando}>
+    <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4" disabled={guardando}>
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
         <GearIcon size={18} /> Marca de empresa
       </legend>
@@ -127,7 +127,7 @@ export default function MarcaSection({ settings, esAdmin, onGuardado }: { settin
       {error && <Aviso tipo="err">{error}</Aviso>}
       {ok && <Aviso tipo="ok">{ok}</Aviso>}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-3">
           <div>
             <label htmlFor="marca-appname" className="block text-xs font-medium text-text2">

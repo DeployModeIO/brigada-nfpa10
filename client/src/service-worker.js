@@ -7,9 +7,9 @@
  * una cadena entrecomillada (typeof es seguro: sin reemplazo, el identificador no está declarado).
  * Caché con nombre POR VERSIÓN → en activate se purgan 'brigada-v1' y versiones anteriores. */
 const VERSION = typeof __BUILD_ID__ !== 'undefined' ? String(__BUILD_ID__) : 'v1'
-const CACHE = `brigada-${VERSION}`
+const CACHE = `nfpa-brigada-${VERSION}`
 const PRECACHE = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png']
-const DB_NAME = 'brigada-nfpa10'
+const DB_NAME = 'nfpa_brigada10'
 const DB_VERSION = 1
 const API_PATH = '/api/'
 const SYNC_TAG = 'nfpa-sync'

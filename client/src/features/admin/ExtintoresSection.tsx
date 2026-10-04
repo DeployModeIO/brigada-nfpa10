@@ -141,7 +141,7 @@ export default function ExtintoresSection({ esAdmin, tipos, ubicaciones }: Props
   }
 
   return (
-    <fieldset className="rounded-xl border border-border bg-surface p-4">
+    <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4">
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
         <ClipboardIcon size={18} /> Extintores
       </legend>

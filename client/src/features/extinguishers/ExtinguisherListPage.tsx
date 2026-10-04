@@ -121,7 +121,44 @@ export default function ExtinguisherListPage() {
         </p>
       )}
 
-      <div ref={padreRef} className="max-h-[62dvh] overflow-auto" aria-label="Lista de extintores">
+      {/* Escritorio (lg+): tabla con columnas ocultas en móvil y cabecera fija */}
+      {!cargando && todos.length > 0 && (
+        <div data-testid="tabla-extintores" className="hidden max-h-[68dvh] overflow-auto rounded-xl border border-border bg-surface lg:block">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="sticky top-0 z-10 border-b border-border bg-surface text-left text-text2">
+                <th scope="col" className="px-4 py-2 font-medium">Tag</th>
+                <th scope="col" className="px-3 py-2 font-medium">Ubicación</th>
+                <th scope="col" className="px-3 py-2 font-medium">Tipo</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium">Cap. (L)</th>
+                <th scope="col" className="px-3 py-2 font-medium">Última inspección</th>
+                <th scope="col" className="px-3 py-2 font-medium">Próximo vencimiento</th>
+                <th scope="col" className="px-3 py-2 font-medium">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {todos.map((x) => (
+                <tr key={x.tag} className="border-b border-border/50 last:border-b-0 hover:bg-bg2">
+                  <th scope="row" className="px-4 py-2 text-left font-normal">
+                    <Link to={`/inspeccion/${encodeURIComponent(x.tag)}`} data-testid={`hila-${x.tag}`} className="font-mono font-medium text-primary hover:underline">
+                      {x.tag}
+                    </Link>
+                  </th>
+                  <td className="max-w-[280px] truncate px-3 py-2">{x.ubicacion}</td>
+                  <td className="max-w-[200px] truncate px-3 py-2">{x.tipo || '—'}</td>
+                  <td className="px-3 py-2 text-right font-mono">{x.capacidad_l ?? '—'}</td>
+                  <td className="px-3 py-2 font-mono">{x.ultima_inspeccion ? String(x.ultima_inspeccion).slice(0, 10) : '—'}</td>
+                  <td className="px-3 py-2 font-mono">{x.proximo_vencimiento ? String(x.proximo_vencimiento).slice(0, 10) : '—'}</td>
+                  <td className="px-3 py-2"><StatusBadge estado={x.estadoCalculado} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Móvil/tablet: tarjetas virtualizadas */}
+      <div ref={padreRef} className="max-h-[62dvh] overflow-auto lg:hidden" aria-label="Lista de extintores">
         <ul
           className="relative"
           style={{ height: `${virtualizador.getTotalSize()}px` }}

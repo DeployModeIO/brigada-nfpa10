@@ -45,8 +45,8 @@ test('ThemeContext: ciclo dark → light → read → dark', async () => {
 
 test('manifest y service worker válidos; viewport sin user-scalable=no', () => {
   const mf = JSON.parse(readFileSync(`${raiz}public/manifest.webmanifest`, 'utf8'))
-  assert.equal(mf.name, 'Brigada NFPA-10')
-  assert.equal(mf.theme_color, '#111827')
+  assert.equal(mf.name, 'Brigada NFPA-10 DeployModeIO')
+  assert.equal(mf.theme_color, '#f3f4f6')
   assert.ok(mf.icons.some((i) => i.sizes === '192x192') && mf.icons.some((i) => i.sizes === '512x512'))
   assert.ok(existsSync(`${raiz}src/service-worker.js`), 'falta src/service-worker.js')
   const html = readFileSync(`${raiz}index.html`, 'utf8')

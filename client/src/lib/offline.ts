@@ -9,7 +9,7 @@ import { openDB, type IDBPDatabase } from 'idb'
 import { api, DEMO_MODE } from './api'
 import type { Extinguisher, InspectionPayload } from './types'
 
-export const DB_NAME = 'brigada-nfpa10'
+export const DB_NAME = 'nfpa_brigada10'
 export const DB_VERSION = 1
 export const STORE_COLA = 'cola_inspecciones'
 export const STORE_CACHE = 'cache_extintores'

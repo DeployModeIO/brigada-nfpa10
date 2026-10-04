@@ -62,12 +62,12 @@ export default function AdminSettingsPage() {
   const onGuardado = useCallback((s: SettingsReal) => setSettings(s), [])
 
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="titulo-ajustes">
-      <h1 id="titulo-ajustes" className="flex items-center gap-2 text-xl font-semibold">
+    <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start" aria-labelledby="titulo-ajustes">
+      <h1 id="titulo-ajustes" className="col-span-full flex items-center gap-2 text-xl font-semibold">
         <GearIcon size={22} /> Ajustes
       </h1>
 
-      <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+      <div className="col-span-full rounded-xl border border-border bg-surface p-4 text-sm">
         <p>
           Sesión: <strong>{usuario?.nombre ?? rolDesdeToken(token) ?? 'usuario'}</strong>
           {' · rol '}
@@ -90,7 +90,7 @@ export default function AdminSettingsPage() {
 
       {errorSettings && <Aviso tipo="err">{errorSettings}</Aviso>}
 
-      <fieldset className="rounded-xl border border-border bg-surface p-4">
+      <fieldset className="col-span-full rounded-xl border border-border bg-surface p-4">
         <legend className="px-1 text-sm font-medium text-text2">Tema de la interfaz</legend>
         <div className="flex flex-wrap gap-2">
           {TEMAS.map((t: Tema) => (
@@ -110,23 +110,35 @@ export default function AdminSettingsPage() {
       </fieldset>
 
       {esAdmin === false && (
-        <p className="flex items-center gap-2 text-sm text-text2">
+        <p className="col-span-full flex items-center gap-2 text-sm text-text2">
           <AlertIcon size={16} className="text-info" />
           Vista de supervisor: puede revisar la configuración, no modificarla.
         </p>
       )}
 
-      <ChecklistSection esAdmin={esAdmin} soloLectura={!esAdmin} />
-      <MarcaSection settings={settings} esAdmin={esAdmin} onGuardado={onGuardado} />
-      <WebhookSection settings={settings} esAdmin={esAdmin} onGuardado={onGuardado} />
-      <ListasSection
-        esAdmin={esAdmin}
-        settings={settings}
-        onListas={(tipos, ubicaciones) => setListas({ tipos, ubicaciones })}
-        onGuardado={onGuardado}
-      />
-      <IntegracionSection esAdmin={esAdmin} soloLectura={!esAdmin} />
-      <ExtintoresSection esAdmin={esAdmin} tipos={listas.tipos} ubicaciones={listas.ubicaciones} />
+      <div className="min-w-0">
+        <ChecklistSection esAdmin={esAdmin} soloLectura={!esAdmin} />
+      </div>
+      <div className="min-w-0">
+        <MarcaSection settings={settings} esAdmin={esAdmin} onGuardado={onGuardado} />
+      </div>
+      <div className="min-w-0">
+        <WebhookSection settings={settings} esAdmin={esAdmin} onGuardado={onGuardado} />
+      </div>
+      <div className="min-w-0">
+        <ListasSection
+          esAdmin={esAdmin}
+          settings={settings}
+          onListas={(tipos, ubicaciones) => setListas({ tipos, ubicaciones })}
+          onGuardado={onGuardado}
+        />
+      </div>
+      <div className="min-w-0">
+        <IntegracionSection esAdmin={esAdmin} soloLectura={!esAdmin} />
+      </div>
+      <div className="col-span-full min-w-0">
+        <ExtintoresSection esAdmin={esAdmin} tipos={listas.tipos} ubicaciones={listas.ubicaciones} />
+      </div>
     </section>
   )
 }

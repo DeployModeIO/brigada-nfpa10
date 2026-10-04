@@ -124,7 +124,7 @@ export default function ChecklistSection({ esAdmin, soloLectura }: { esAdmin: bo
   }
 
   return (
-    <fieldset className="rounded-xl border border-border bg-surface p-4" disabled={soloLectura}>
+    <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4" disabled={soloLectura}>
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
         <ClipboardIcon size={18} /> Checklist configurable
       </legend>
@@ -133,6 +133,7 @@ export default function ChecklistSection({ esAdmin, soloLectura }: { esAdmin: bo
       {error && <Aviso tipo="err">{error}</Aviso>}
       {ok && !error && <Aviso tipo="ok">{ok}</Aviso>}
 
+      <div className="max-w-full overflow-x-auto">
       <table className="w-full border-collapse text-sm" aria-label="Ítems activos del checklist">
         <thead>
           <tr className="border-b border-border text-left text-text2">
@@ -235,6 +236,7 @@ export default function ChecklistSection({ esAdmin, soloLectura }: { esAdmin: bo
           )}
         </tbody>
       </table>
+      </div>
 
       {inactivos.length > 0 && (
         <div className="mt-3 rounded-lg border border-dashed border-warn/60 p-3">

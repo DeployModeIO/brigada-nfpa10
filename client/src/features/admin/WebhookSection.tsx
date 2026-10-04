@@ -67,7 +67,7 @@ export default function WebhookSection({ settings, esAdmin, onGuardado }: { sett
   }
 
   return (
-    <fieldset className="rounded-xl border border-border bg-surface p-4" disabled={guardando}>
+    <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4" disabled={guardando}>
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
         <AlertIcon size={18} /> Integración empresarial (n8n / ERP)
       </legend>

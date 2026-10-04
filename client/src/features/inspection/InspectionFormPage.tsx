@@ -269,7 +269,7 @@ export default function InspectionFormPage() {
   }
 
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="titulo-inspeccion">
+    <section className="mx-auto flex w-full max-w-screen-sm flex-col gap-4 md:max-w-screen-md lg:max-w-4xl" aria-labelledby="titulo-inspeccion">
       <h1 id="titulo-inspeccion" className="text-xl font-semibold">
         Inspección — <span className="font-mono text-primary">{tag || '(sin tag)'}</span>
       </h1>
@@ -352,9 +352,9 @@ export default function InspectionFormPage() {
             </dl>
           </header>
 
-          <form onSubmit={onGuardar} className="flex flex-col gap-4">
+          <form onSubmit={onGuardar} className="mx-auto flex w-full max-w-2xl flex-col gap-4 lg:max-w-3xl">
             <h2 className="text-lg font-semibold">Checklist de inspección</h2>
-            <ul className="flex flex-col gap-3" aria-label="Ítems del checklist">
+            <ul className="grid gap-3 lg:grid-cols-2" aria-label="Ítems del checklist">
               {items.map((i) => (
                 <CheckItem
                   key={i.id}

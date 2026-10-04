@@ -222,13 +222,13 @@ export default function ListasSection({ esAdmin, settings, onListas, onGuardado 
   }
 
   return (
-    <fieldset className="rounded-xl border border-border bg-surface p-4">
+    <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4">
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
         <SearchIcon size={18} /> Listas desplegables de la app
       </legend>
       {aviso && <Aviso tipo="info">{aviso}</Aviso>}
       {!semillaCargada && <p role="status" className="text-sm text-text2">Sembrando listas desde la base…</p>}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <EditorLista titulo="Tipos de extintor" etiqueta="Tipos de extintor configurados" items={tipos} soloLectura={!esAdmin} onChange={cambiarTipos} />
         <EditorLista titulo="Ubicaciones" etiqueta="Ubicaciones configuradas" items={ubicaciones} soloLectura={!esAdmin} onChange={cambiarUbicaciones} />
       </div>

@@ -77,27 +77,33 @@ export default function PlantaPage() {
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <label className="text-xs text-text2">
-          <span className="sr-only">Filtrar por área</span>
-          <select value={area} onChange={(e) => setArea(e.target.value)} className="min-h-10 rounded-lg border border-border bg-surface px-2 text-sm text-text" aria-label="Filtrar por área o nave">
+      {/* móvil: filtros + mapa apilados; lg+: split view mapa | panel de filtros 360px */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+      <div className="order-2 w-full shrink-0 flex flex-col gap-2 rounded-xl border border-border bg-surface p-3 lg:order-2 lg:w-[360px]" data-testid="panel-filtros">
+        <p className="text-xs font-semibold uppercase tracking-wide text-text2 lg:hidden">Filtros</p>
+        <label className="text-xs text-text2 lg:flex lg:flex-col lg:gap-1">
+          <span className="sr-only lg:not-sr-only">Filtrar por área o nave</span>
+          <select value={area} onChange={(e) => setArea(e.target.value)} className="min-h-10 w-full rounded-lg border border-border bg-surface px-2 text-sm text-text lg:min-h-11" aria-label="Filtrar por área o nave">
             <option value="">Todas las áreas</option>
             {areas.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </label>
-        <label className="text-xs text-text2">
-          <span className="sr-only">Filtrar por estado</span>
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} className="min-h-10 rounded-lg border border-border bg-surface px-2 text-sm text-text" aria-label="Filtrar por estado del semáforo">
+        <label className="text-xs text-text2 lg:flex lg:flex-col lg:gap-1">
+          <span className="sr-only lg:not-sr-only">Estado del semáforo</span>
+          <select value={estado} onChange={(e) => setEstado(e.target.value)} className="min-h-10 w-full rounded-lg border border-border bg-surface px-2 text-sm text-text lg:min-h-11" aria-label="Filtrar por estado del semáforo">
             {ESTADOS.map((s) => <option key={s.v} value={s.v}>{s.t}</option>)}
           </select>
         </label>
+        <p className="text-xs text-text2 lg:mt-1">{pins.length} de {items.length} equipos visibles</p>
+        <p className="hidden text-xs text-text2 lg:block">Toca un pin para abrir la ficha de inspección del equipo (funciona offline con la caché).</p>
       </div>
 
+      <div className="order-1 min-w-0 flex-1 lg:order-1">
       {cargando ? (
         <p role="status" className="text-sm text-text2">Cargando planta…</p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-surface">
-          <svg viewBox="0 0 100 100" className="h-[62vh] w-full" role="img" aria-label={`Mapa de planta con ${pins.length} pines de extintores`}>
+          <svg viewBox="0 0 100 100" className="h-[62vh] w-full lg:h-[74vh]" role="img" aria-label={`Mapa de planta con ${pins.length} pines de extintores`}>
             {/* retícula de referencia de la nave */}
             <g stroke="var(--border)" strokeWidth="0.2">
               {[10, 30, 50, 70, 90].map((v) => <line key={`h${v}`} x1="4" y1={v} x2="96" y2={v} />)}
@@ -128,7 +134,9 @@ export default function PlantaPage() {
           </ul>
         </div>
       )}
-      <p className="text-xs text-text2">Toca un pin para abrir la ficha de inspección del equipo (funciona offline con la caché).</p>
+      <p className="mt-2 text-xs text-text2 lg:hidden">Toca un pin para abrir la ficha de inspección del equipo (funciona offline con la caché).</p>
+      </div>
+      </div>
     </section>
   )
 }
