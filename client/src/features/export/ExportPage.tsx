@@ -47,7 +47,12 @@ function crearPdf(dd: Record<string, unknown>): Promise<Blob> {
 }
 import { api } from '../../lib/api'
 import { useConfig } from '../../context/ConfigContext'
-import { AlertIcon, ClipboardIcon, DownloadIcon } from '../../components/icons'
+import {
+  AlertIcon,
+  ClipboardIcon,
+  DownloadIcon,
+  FileXlsIcon,
+} from '../../components/icons'
 import { MESES_LARGOS, CATEGORIAS, contDe, type PanelReal } from '../dashboard/semforo'
 import { bytesHumanos, descargarConAuth, paginadoCompleto, volcar } from './descargas'
 import { useAuth } from '../../context/AuthContext'
@@ -346,7 +351,7 @@ export default function ExportPage() {
           aria-busy={accion === 'xlsx'}
           className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold hover:bg-bg2 disabled:opacity-60"
         >
-          <DownloadIcon size={22} className="text-ok" />
+          <FileXlsIcon size={22} className="text-ok" />
           {accion === 'xlsx' ? 'Descargando XLSX…' : 'XLSX inventario'}
         </button>
         <button

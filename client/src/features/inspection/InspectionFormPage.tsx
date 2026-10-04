@@ -16,7 +16,18 @@ import {
   pendingCount,
   setSetting,
 } from '../../lib/offline'
-import { AlertIcon, ClipboardIcon, CloseIcon, GearIcon, OfflineIcon, ScanIcon, CheckIcon } from '../../components/icons'
+
+import {
+  AlertIcon,
+  CameraIcon,
+  CheckIcon,
+  ClipboardIcon,
+  CloseIcon,
+  GearIcon,
+  LocationIcon,
+  OfflineIcon,
+  ScanIcon,
+} from '../../components/icons'
 import CheckItem from './CheckItem'
 import StatusBadge from './StatusBadge'
 import Toast, { type ToastData } from './Toast'
@@ -550,19 +561,9 @@ export default function InspectionFormPage() {
 }
 
 function CameraBtn() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable={false}>
-      <path d="M4 8h3l2-3h6l2 3h3v12H4V8Z" />
-      <circle cx="12" cy="13" r="3.5" />
-    </svg>
-  )
+  return <CameraIcon size={20} />
 }
 
 function MapPinIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable={false}>
-      <path d="M12 21s-7-6.1-7-11a7 7 0 1 1 14 0c0 4.9-7 11-7 11Z" />
-      <circle cx="12" cy="10" r="2.5" />
-    </svg>
-  )
+  return <LocationIcon size={20} />
 }
