@@ -11,6 +11,7 @@
 // en un parser de solo lectura y, si no es migrable, se IGNORA con aviso de deprecación.
 const config = require('../config');
 const { makeConnector } = require('./conectores');
+const { interpola } = require('./params');
 
 const CACHE_TTL_MS = parseInt(process.env.INTEGRATION_REF_TTL_MS || '300000', 10);
 const MAX_ROWS = 2000;
@@ -101,17 +102,19 @@ function limitClause(def) {
   return ` LIMIT ${Math.min(Number(def.limit) || MAX_ROWS, MAX_ROWS)}`;
 }
 
-// Devuelve { sql, params } (A4: valores del WHERE viajan bind-parametrizados).
-function buildSql(def) {
+// Devuelve { sql, params } (A4: WHERE bind-parametrizado). FIX PG 04/10: `dialect` →
+// postgres $1..$n vía helper común src/integration/params.js; sqlite/mysql conservan `?`.
+function buildSql(def, dialect) {
   const b = baseSql(def);
   if (!b) return null;
-  return { sql: `SELECT ${def.id} AS id, ${def.label} AS label${b.from}${limitClause(def)}`, params: b.params };
+  const sql = `SELECT ${def.id} AS id, ${def.label} AS label${b.from}${limitClause(def)}`;
+  return { sql: interpola(sql, dialect), params: b.params };
 }
 
-function buildSqlFilas(def) {
+function buildSqlFilas(def, dialect) {
   const b = baseSql(def);
   if (!b) return null;
-  return { sql: `SELECT *${b.from}${limitClause(def)}`, params: b.params };
+  return { sql: interpola(`SELECT *${b.from}${limitClause(def)}`, dialect), params: b.params };
 }
 
 function isOn() { return config.integrationMode === 'referencia' && !!config.clientDbUrl; }
@@ -122,10 +125,11 @@ async function leerLista(nombre) {
   if (!def) return null;
   const hit = cache.get(nombre);
   if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.rows;
-  const q = buildSql(def);
-  if (!q) { const e = new Error(`definición inválida para la lista "${nombre}" (identificadores SQL no permitidos)`); e.statusCode = 400; throw e; }
   const conn = await makeConnector(config.clientDbDriver, config.clientDbUrl);
   try {
+    // FIX PG: el SQL se construye CONOCIENDO el dialecto del conector (postgres → $1..$n).
+    const q = buildSql(def, conn.dialect);
+    if (!q) { const e = new Error(`definición inválida para la lista "${nombre}" (identificadores SQL no permitidos)`); e.statusCode = 400; throw e; }
     const rows = (await conn.query(q.sql, q.params)).map((r) => ({ id: String(r.id ?? ''), label: String(r.label ?? '') })).filter((r) => r.id);
     cache.set(nombre, { rows, ts: Date.now() });
     return rows;
@@ -138,10 +142,11 @@ async function leerLista(nombre) {
 async function leerFilas(nombre) {
   const def = listasConfig()[nombre];
   if (!def) return null;
-  const q = buildSqlFilas(def);
-  if (!q) { const e = new Error(`definición inválida para la lista "${nombre}" (identificadores SQL no permitidos)`); e.statusCode = 400; throw e; }
   const conn = await makeConnector(config.clientDbDriver, config.clientDbUrl);
   try {
+    // FIX PG: dialecto del conector para $1..$n (postgres); sqlite/mysql mantienen `?`.
+    const q = buildSqlFilas(def, conn.dialect);
+    if (!q) { const e = new Error(`definición inválida para la lista "${nombre}" (identificadores SQL no permitidos)`); e.statusCode = 400; throw e; }
     return await conn.query(q.sql, q.params);
   } finally {
     await conn.close().catch(() => {});

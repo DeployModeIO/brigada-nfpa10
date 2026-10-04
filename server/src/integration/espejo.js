@@ -11,6 +11,7 @@ const config = require('../config');
 const db = require('../db');
 const { getSetting, setSetting } = require('../lib/webhook');
 const { makeConnector } = require('./conectores');
+const { interpola } = require('./params');
 
 const MAPEOS_KEY = 'espejo.mapeos';
 const BASE_RETRY_MS = 15_000;
@@ -63,13 +64,6 @@ async function enqueue(origen, registro) {
     console.log(`[${new Date().toISOString()}] [espejo] enqueue falló (${origen}): ${e.message}`);
     return null;
   }
-}
-
-function interpola(sql, dialect) {
-  // Postgres usa $1..$n en lugar de ?.
-  if (dialect !== 'postgres') return sql;
-  let i = 0;
-  return sql.replace(/\?/g, () => `$${++i}`);
 }
 
 async function flush() {
