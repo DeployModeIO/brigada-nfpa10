@@ -32,11 +32,14 @@ function postJson(url, payload, apiKey) {
         hostname: u.hostname,
         port: u.port || (u.protocol === 'https:' ? 443 : 80),
         path: (u.pathname || '/') + (u.search || ''),
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          'X-API-Key': apiKey || ''
-        },
+        headers: Object.assign(
+          {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body)
+          },
+          // X-API-Key SOLO cuando settings.webhookApi está configurado (n8n Header Auth).
+          apiKey ? { 'X-API-Key': apiKey } : {}
+        ),
         timeout: 5000
       },
       (res) => {
