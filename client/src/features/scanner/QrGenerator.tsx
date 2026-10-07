@@ -158,7 +158,7 @@ export function QrGenerator() {
           <div aria-hidden className="qr-print-area hidden print:flex">
             <img src={dataUrl} alt="" width={512} height={512} />
             <p style={{ fontWeight: 700, fontSize: '16pt' }}>{generado}</p>
-            <p style={{ fontSize: '9pt' }}>Brigada NFPA 10 — inspección mensual</p>
+            <p style={{ fontSize: '9pt' }}>BRIGADA O&amp;G — inspección mensual · NFPA 10 / API RP 14G</p>
           </div>
         </>
       )}

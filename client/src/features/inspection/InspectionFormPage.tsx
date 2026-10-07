@@ -32,6 +32,7 @@ import CheckItem from './CheckItem'
 import StatusBadge from './StatusBadge'
 import Toast, { type ToastData } from './Toast'
 import { comprimirImagen } from './photo'
+import { verificarCoincidenciaGps } from '../scanner/geo'
 import {
   CRITICAS,
   fechaCorta,
@@ -486,6 +487,21 @@ export default function InspectionFormPage() {
                     {gps.precision ? ` (±${Math.round(gps.precision)} m)` : ''}
                   </p>
                 )}
+                {gps &&
+                  (() => {
+                    const coincidencia = verificarCoincidenciaGps(gps, ext)
+                    if (!coincidencia) return null
+                    return (
+                      <p
+                        data-testid="gps-coincidencia"
+                        role="status"
+                        className={`text-sm font-medium ${coincidencia.coincidente ? 'text-ok' : 'text-warn'}`}
+                      >
+                        {coincidencia.coincidente ? <CheckIcon size={16} className="inline" /> : <AlertIcon size={16} className="inline" />}{' '}
+                        {coincidencia.etiqueta}
+                      </p>
+                    )
+                  })()}
                 {gpsEstado === 'err' && (
                   <p role="alert" className="text-sm font-medium text-warn">
                     {gpsMsg}
