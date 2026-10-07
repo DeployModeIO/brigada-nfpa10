@@ -84,6 +84,7 @@ interface Settings {
   brand: Brand
   configTipos: string[]
   configUbicaciones: string[]
+  configHallazgos: string[]
 }
 
 interface DemoDb {
@@ -373,6 +374,28 @@ function defaultSettings(): Settings {
     webhookApi: '',
     brand: { primary: '#0f5f8f', ok: '#1a6f36', warn: '#92400e', err: '#b91c1c', info: '#0f5f8f' },
     configTipos: ['PQS ABC', 'CO2', 'AFFF (espuma)', 'AGUA a presión', 'BC', 'Clase K (cocina)'],
+    configHallazgos: [
+      'Sello o precinto de seguridad roto o ausente',
+      'Manómetro en zona roja (presión baja)',
+      'Manómetro en zona roja (sobrepresión)',
+      'Manómetro dañado, vencido o ilegible',
+      'Prueba de presión (hidrostática) vencida',
+      'Recarga de agente vencida (+12 meses)',
+      'Óxido o corrosión visible en el cuerpo',
+      'Abolladuras o golpes en el cilindro',
+      'Manguera fisurada, cortada o endurecida',
+      'Tobera o difusor obstruido o faltante',
+      'Válvula con fuga o dañada',
+      'Pasador de seguridad ausente',
+      'Agente compactado o apelmazado (PQS)',
+      'Tarjeta/etiqueta de inspección ilegible',
+      'Señalización del equipo ausente o ilegible',
+      'Acceso al equipo obstruido',
+      'Soporte flojo, ausente o fuera de altura',
+      'Tipo de extintor incorrecto para el riesgo',
+      'Cuerpo repintado (pintura no de fábrica)',
+      'SCBA con carga de cilindro insuficiente'
+    ],
     configUbicaciones: ['Planta Compresora', 'Módulo POB (Personal Offshore)', 'Área de Tanques de Almacenamiento', 'Muelle de Carguío', 'Taller de Mantenimiento', 'Subestación Eléctrica', 'Almacén Químico', 'Oficinas', 'Planta eléctrica'],
   }
 }

@@ -33,6 +33,7 @@ import StatusBadge from './StatusBadge'
 import Toast, { type ToastData } from './Toast'
 import { comprimirImagen } from './photo'
 import { verificarCoincidenciaGps } from '../scanner/geo'
+import { HALLAZGOS_INICIALES } from '../admin/listasConfig'
 import {
   CRITICAS,
   fechaCorta,
@@ -449,13 +450,40 @@ export default function InspectionFormPage() {
                 </div>
 
                 <div>
+                  <label htmlFor="hallazgo-select" className="mb-2 block font-medium">
+                    Hallazgo encontrado (agregar al comentario)
+                  </label>
+                  <select
+                    id="hallazgo-select"
+                    data-testid="hallazgo-select"
+                    value=""
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (!v) return
+                      const linea = `• ${v}`
+                      setObs((prev) => (prev.trim() ? `${prev.trim()}\n${linea}` : linea))
+                      e.target.value = ''
+                    }}
+                    className="w-full rounded-lg border border-border bg-bg p-3 text-base"
+                  >
+                    <option value="">— Selecciona un hallazgo del catálogo —</option>
+                    {HALLAZGOS_INICIALES.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-text2">
+                    Catálogo editable por el admin en Ajustes → Listas desplegables.
+                  </p>
+                </div>
+
+                <div>
                   <label htmlFor="observaciones" className="mb-2 block font-medium">
                     Observaciones (opcional)
                   </label>
                   <textarea
                     id="observaciones"
                     data-testid="observaciones"
-                    rows={3}
+                    rows={4}
                     value={obs}
                     onChange={(e) => setObs(e.target.value)}
                     placeholder="Describe la falla observada…"
@@ -489,7 +517,9 @@ export default function InspectionFormPage() {
                 )}
                 {gps &&
                   (() => {
-                    const coincidencia = verificarCoincidenciaGps(gps, ext)
+                    const coincidencia = ext && typeof ext.lat === 'number' && typeof ext.lng === 'number'
+                      ? verificarCoincidenciaGps(gps, { lat: ext.lat, lng: ext.lng })
+                      : null
                     if (!coincidencia) return null
                     return (
                       <p

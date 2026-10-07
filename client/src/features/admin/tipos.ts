@@ -10,6 +10,7 @@ export interface SettingsReal {
   brand: { primary: string; ok: string; warn: string; err: string; info: string }
   configTipos?: string[]
   configUbicaciones?: string[]
+  configHallazgos?: string[]
 }
 
 export type EstadoCalculadoReal = 'vigente' | 'por_vencer' | 'vencido' | 'rechazado' | 'sin_inspeccionar'

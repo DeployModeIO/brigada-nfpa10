@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { CheckIcon, CloseIcon, SearchIcon } from '../../components/icons'
 import { Aviso, BotonConfirmar, inputCls } from './UI'
-import { KEY_TIPOS, KEY_UBICACIONES, escribirTipos, escribirUbicaciones, leerTipos, leerUbicaciones } from './listasConfig'
+import { KEY_TIPOS, KEY_UBICACIONES, escribirTipos, escribirUbicaciones, escribirHallazgos, leerTipos, leerUbicaciones, leerHallazgos } from './listasConfig'
 import type { ExtinguisherReal, RespuestaPaginada, SettingsReal } from './tipos'
 
 interface Props {
@@ -142,6 +142,7 @@ function EditorLista({
 export default function ListasSection({ esAdmin, settings, onListas, onGuardado }: Props) {
   const [tipos, setTipos] = useState<string[]>(leerTipos)
   const [ubicaciones, setUbicaciones] = useState<string[]>(leerUbicaciones)
+  const [hallazgos, setHallazgos] = useState<string[]>(leerHallazgos)
   const [semillaCargada, setSemillaCargada] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -150,9 +151,11 @@ export default function ListasSection({ esAdmin, settings, onListas, onGuardado 
     if (!settings) return
     const t = Array.isArray(settings.configTipos) && settings.configTipos.length ? settings.configTipos : null
     const u = Array.isArray(settings.configUbicaciones) && settings.configUbicaciones.length ? settings.configUbicaciones : null
-    if (!t && !u) return
+    const h = Array.isArray((settings as SettingsReal & { configHallazgos?: string[] }).configHallazgos) && (settings as SettingsReal & { configHallazgos?: string[] }).configHallazgos!.length ? (settings as SettingsReal & { configHallazgos?: string[] }).configHallazgos! : null
+    if (!t && !u && !h) return
     if (t) { escribirTipos(t); setTipos(t) }
     if (u) { escribirUbicaciones(u); setUbicaciones(u) }
+    if (h) { escribirHallazgos(h); setHallazgos(h) }
     onListas(t ?? leerTipos(), u ?? leerUbicaciones())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings])
@@ -191,7 +194,7 @@ export default function ListasSection({ esAdmin, settings, onListas, onGuardado 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function persistir(key: 'configTipos' | 'configUbicaciones', v: string[]) {
+  function persistir(key: 'configTipos' | 'configUbicaciones' | 'configHallazgos', v: string[]) {
     if (!esAdmin) return
     api
       .patch<SettingsReal>('/settings', { [key]: v })
@@ -221,6 +224,13 @@ export default function ListasSection({ esAdmin, settings, onListas, onGuardado 
     if (!esAdmin) setAviso('Ubicaciones actualizadas en este dispositivo (localStorage).')
   }
 
+  function cambiarHallazgos(v: string[]) {
+    setHallazgos(v)
+    escribirHallazgos(v)
+    persistir('configHallazgos', v)
+    if (!esAdmin) setAviso('Hallazgos actualizados en este dispositivo (localStorage).')
+  }
+
   return (
     <fieldset className="min-w-0 rounded-xl border border-border bg-surface p-4">
       <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-text2">
@@ -231,6 +241,7 @@ export default function ListasSection({ esAdmin, settings, onListas, onGuardado 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <EditorLista titulo="Tipos de extintor" etiqueta="Tipos de extintor configurados" items={tipos} soloLectura={!esAdmin} onChange={cambiarTipos} />
         <EditorLista titulo="Ubicaciones" etiqueta="Ubicaciones configuradas" items={ubicaciones} soloLectura={!esAdmin} onChange={cambiarUbicaciones} />
+        <EditorLista titulo="Hallazgos de terreno" etiqueta="Hallazgos de terreno configurados" items={hallazgos} soloLectura={!esAdmin} onChange={cambiarHallazgos} />
       </div>
       <p className="mt-3 text-xs text-text2">
         Las listas se guardan en el servidor vía PATCH /settings (configTipos[] / configUbicaciones[]) y se hidratan

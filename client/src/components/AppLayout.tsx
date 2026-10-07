@@ -185,4 +185,4 @@ export default function AppLayout() {
   )
 }
 
-const TEMAS_CICLO: Record<Tema, Tema> = { dark: 'light', light: 'read', read: 'dark' }
+const TEMAS_CICLO: Record<Tema, Tema> = { dark: 'light', light: 'read', read: 'dark', solarized: 'dark' }

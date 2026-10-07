@@ -15,12 +15,36 @@ const DEFAULTS = {
   webhookApi: '',
   brand: { primary: '#0ea5e9', ok: '#22c55e', warn: '#eab308', err: '#ef4444', info: '#3b82f6' },
   configTipos: [],
-  configUbicaciones: []
+  configUbicaciones: [],
+  // Catálogo de hallazgos de terreno (DEC V2.1 O&G): NFPA 10 §7.2/§7.3 + API RP 14G.
+  // Editable por el admin (PATCH /settings, clave configHallazgos).
+  configHallazgos: [
+    'Sello o precinto de seguridad roto o ausente',
+    'Manómetro en zona roja (presión baja)',
+    'Manómetro en zona roja (sobrepresión)',
+    'Manómetro dañado, vencido o ilegible',
+    'Prueba de presión (hidrostática) vencida',
+    'Recarga de agente vencida (+12 meses)',
+    'Óxido o corrosión visible en el cuerpo',
+    'Abolladuras o golpes en el cilindro',
+    'Manguera fisurada, cortada o endurecida',
+    'Tobera o difusor obstruido o faltante',
+    'Válvula con fuga o dañada',
+    'Pasador de seguridad ausente',
+    'Agente compactado o apelmazado (PQS)',
+    'Tarjeta/etiqueta de inspección ilegible',
+    'Señalización del equipo ausente o ilegible',
+    'Acceso al equipo obstruido',
+    'Soporte flojo, ausente o fuera de altura',
+    'Tipo de extintor incorrecto para el riesgo',
+    'Cuerpo repintado (pintura no de fábrica)',
+    'SCBA con carga de cilindro insuficiente'
+  ]
 };
 
 const SCALAR_KEYS = ['appName', 'jefeBrigada', 'logoDataUrl', 'temaDefault', 'webhookUrl', 'webhookApi'];
 const BRAND_KEYS = ['primary', 'ok', 'warn', 'err', 'info'];
-const LIST_KEYS = ['configTipos', 'configUbicaciones'];
+const LIST_KEYS = ['configTipos', 'configUbicaciones', 'configHallazgos'];
 
 async function loadSettings() {
   const rows = await db.all('SELECT skey, svalue FROM settings');

@@ -134,6 +134,7 @@ export interface PublicConfig {
   webhookApi?: string
   configTipos?: string[]
   configUbicaciones?: string[]
+  configHallazgos?: string[]
 }
 
 /** Usuario vista cliente (mapeado desde `user.username` del API). */
