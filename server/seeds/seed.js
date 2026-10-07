@@ -26,34 +26,40 @@ const CHECKLIST = [
   { clave: 'manguera_sin_fisuras', etiqueta: 'Manguera/tobera sin fisuras', orden: 6, critico: 1 },
   { clave: 'cilindro_sin_corrosion', etiqueta: 'Cilindro sin corrosión ni abolladuras', orden: 7, critico: 0 },
   { clave: 'tarjeta_legible', etiqueta: 'Tarjeta de inspección legible y firmada', orden: 8, critico: 0 },
+  { clave: 'api14g_clase_b_area_encerrada', etiqueta: 'API RP 14G: Clase B presente junto a motores/turbinas en área encerrada', orden: 9, critico: 0 },
   { clave: 'senaletica_visible', etiqueta: 'Señalética visible [clásico]', orden: 20, critico: 0 },
   { clave: 'acceso_despejado', etiqueta: 'Acceso despejado [clásico]', orden: 21, critico: 0 },
   { clave: 'soporte_firme', etiqueta: 'Soporte firme y señalizado [clásico]', orden: 22, critico: 0 }
 ];
 
 // Reglas de vencimiento NFPA 10 como DATOS (criterio 2): mensual 30 d, recarga 12 m,
-// hidrostática 5 a (CO2/agua/BC/K) / 12 a (PQS acero); manda fecha de fabricación.
+// hidrostática 5 a (CO2/agua/BC/K/AFFF) / 12 a (PQS acero); manda fecha de fabricación.
+// AFFF: espuma acuosa estándar en instalaciones Oil & Gas (API RP 14G).
 const REGLAS_NFPA = [
   { agente: '*', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Regla por defecto (extintores sin agente declarado)' },
   { agente: 'PQS', mensual_dias: 30, recarga_meses: 12, hidro_anios: 12, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Polvo químico seco, cilindro de acero: hidrostática 12 años' },
   { agente: 'CO2', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'CO2: hidrostática 5 años' },
   { agente: 'AGUA', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Agua a presión: hidrostática 5 años' },
   { agente: 'BC', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Halon/BC sustituto: hidrostática 5 años' },
-  { agente: 'K', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Acetato de potasio (cocina): hidrostática 5 años' }
+  { agente: 'K', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Acetato de potasio (cocina): hidrostática 5 años' },
+  { agente: 'AFFF', mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30, nota: 'Espuma AFFF Oil & Gas (API RP 14G): hidrostática 5 años' }
 ];
 
 // Habilitaciones de demo (criterio 5): inspector vigente, brigadista VENCIDA.
 // Criterio 19: sin RUT en metadata/habilitaciones — solo referencia al usuario interno.
-const TIPO_A_AGENTE = { ABC: 'PQS', BC: 'BC', CO2: 'CO2', PW: 'AGUA', FBQ: 'PQS', K: 'K' };
+const TIPO_A_AGENTE = { ABC: 'PQS', BC: 'BC', CO2: 'CO2', PW: 'AGUA', FBQ: 'PQS', K: 'K', AFFF: 'AFFF' };
 
+// Ubicaciones Oil & Gas (DEC BRIGADA-O&G): planta compresora, módulo POB offshore,
+// tanques de almacenamiento, muelle de carguío, etc.
 const UBICACIONES = [
-  'Pasillo norte', 'Bodega A', 'Oficinas 2do piso', 'Laboratorio', 'Comedor',
-  'Estacionamiento', 'Cuarto eléctrico', 'Almacén de químicos', 'Recepción', 'Taller mecánico',
-  'Rampa de carga', 'Sala de servidores', 'Cocina', 'Archivamiento', 'Patio central',
-  'Cuarto de bombas', 'Zona de despacho', 'Escalera B', 'Perimetral sur', 'Subestación'
+  'Planta Compresora', 'Módulo POB (Personal Offshore)', 'Área de Tanques de Almacenamiento',
+  'Muelle de Carguío', 'Taller de Mantenimiento', 'Subestación Eléctrica',
+  'Almacén Químico', 'Sala de servidores', 'Cuarto de bombas contra incendio', 'Zona de despacho',
+  'Rampa de carga', 'Helipuerto', 'Cocina del módulo', 'Oficinas', 'Perimetral sur',
+  'Cuarto eléctrico', 'Estación de grimémetro', 'Bodega de inflamables', 'Patio de tanques', 'Punto de reunión'
 ];
-const ZONAS = ['COC', 'ALM', 'OFI', 'LAB', 'VEH', 'EXP', 'POR', 'TAL', 'REC', 'SER'];
-const TIPOS = ['ABC', 'BC', 'CO2', 'PW', 'FBQ'];
+const ZONAS = ['PCO', 'POB', 'TAN', 'MUE', 'TAL', 'SUB', 'AQU', 'DES', 'RAM', 'HEL'];
+const TIPOS = ['ABC', 'BC', 'CO2', 'AFFF', 'PW'];
 
 function dayOffset(days) { return new Date(Date.now() + days * 86400000).toISOString(); }
 function round(n, d) { const p = Math.pow(10, d); return Math.round(n * p) / p; }

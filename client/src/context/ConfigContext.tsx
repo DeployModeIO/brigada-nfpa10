@@ -3,7 +3,7 @@ import { api, API_BASE, type PublicConfig } from '../lib/api'
 import { setSetting } from '../lib/offline'
 import { useTheme } from './ThemeContext'
 
-export const APP_NAME_DEFAULT = 'Brigada NFPA-10'
+export const APP_NAME_DEFAULT = 'BRIGADA O&G'
 
 export interface ConfigContextValue {
   config: PublicConfig

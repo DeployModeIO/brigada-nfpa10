@@ -27,21 +27,31 @@ function token(bloqueCss, nombre) {
   return m[1]
 }
 
-test('tokens light y read oscurecidos como la línea (sin sky-500/emerald-500)', () => {
+test('tokens light y read oscurecidos como la línea (sin sky-500/emerald-500) — V2.1: light HMI industrial', () => {
   const css = readFileSync(`${raiz}src/styles/tokens.css`, 'utf8')
   for (const sel of ["[data-theme='light']", "[data-theme='read']"]) {
     const b = bloque(css, sel)
-    assert.equal(token(b, '--primary'), '#0369a1', `${sel} --primary`)
-    assert.equal(token(b, '--ok'), '#047857', `${sel} --ok`)
-    assert.equal(token(b, '--warn'), '#92400e', `${sel} --warn`)
-    assert.equal(token(b, '--err'), '#b91c1c', `${sel} --err`)
-    assert.equal(token(b, '--info'), '#0369a1', `${sel} --info`)
+    // light usa la paleta HMI O&G; read conserva la paleta legacy de la línea
+    const esperados = sel === "[data-theme='light']"
+      ? { '--primary': '#0f5f8f', '--ok': '#1a6f36', '--warn': '#92400e', '--err': '#b91c1c', '--info': '#0f5f8f' }
+      : { '--primary': '#0369a1', '--ok': '#047857', '--warn': '#92400e', '--err': '#b91c1c', '--info': '#0369a1' }
+    for (const [t, hex] of Object.entries(esperados)) assert.equal(token(b, t), hex, `${sel} ${t}`)
   }
 })
 
-test('contraste WCAG ≥4.5 de tokens de color sobre surface y bg en light/read', () => {
+test('solarized usa la paleta oficial base03/base02 con acentos AA', () => {
   const css = readFileSync(`${raiz}src/styles/tokens.css`, 'utf8')
-  for (const sel of ["[data-theme='light']", "[data-theme='read']"]) {
+  const b = bloque(css, "[data-theme='solarized']")
+  assert.equal(token(b, '--bg'), '#002b36', 'bg base03')
+  assert.equal(token(b, '--bg2'), '#073642', 'bg2 base02')
+  assert.equal(token(b, '--text'), '#eee8d5', 'text base2')
+  assert.equal(token(b, '--primary'), '#5cb3de', 'primary blue AA')
+  assert.equal(token(b, '--ok'), '#9cb429', 'ok green AA')
+})
+
+test('contraste WCAG ≥4.5 de tokens de color sobre surface y bg en light/solarized/read', () => {
+  const css = readFileSync(`${raiz}src/styles/tokens.css`, 'utf8')
+  for (const sel of ["[data-theme='light']", "[data-theme='solarized']", "[data-theme='read']"]) {
     const b = bloque(css, sel)
     const fondos = [token(b, '--surface'), token(b, '--bg')]
     for (const t of ['--primary', '--ok', '--warn', '--err', '--info', '--text', '--text2']) {
@@ -54,7 +64,7 @@ test('contraste WCAG ≥4.5 de tokens de color sobre surface y bg en light/read'
 
 test('seed de brand del demo y defaults de admin usan la paleta oscurecida', () => {
   const demo = readFileSync(`${raiz}src/lib/demoMock.ts`, 'utf8')
-  const linea = /brand:\s*\{ primary: '#0369a1', ok: '#047857', warn: '#92400e', err: '#b91c1c', info: '#0369a1' \}/
+  const linea = /brand:\s*\{ primary: '#0f5f8f', ok: '#1a6f36', warn: '#92400e', err: '#b91c1c', info: '#0f5f8f' \}/
   assert.ok(linea.test(demo), 'demoMock brand seed debe ser la paleta oscurecida de la línea')
   assert.ok(!demo.includes('#0ea5e9'), 'el demo no debe sembrar sky-500')
   const marca = readFileSync(`${raiz}src/features/admin/MarcaSection.tsx`, 'utf8')

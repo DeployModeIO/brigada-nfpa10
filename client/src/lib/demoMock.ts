@@ -371,9 +371,9 @@ function defaultSettings(): Settings {
     temaDefault: 'light',
     webhookUrl: '',
     webhookApi: '',
-    brand: { primary: '#0369a1', ok: '#047857', warn: '#92400e', err: '#b91c1c', info: '#0369a1' },
-    configTipos: ['PQS ABC', 'CO2', 'AGUA a presión', 'BC', 'Clase K (cocina)'],
-    configUbicaciones: ['Cocina industrial', 'Almacén A', 'Almacén B', 'Almacén C', 'Oficinas', 'Laboratorio', 'Taller mecánico', 'Recibimiento', 'Planta eléctrica', 'Vehículos'],
+    brand: { primary: '#0f5f8f', ok: '#1a6f36', warn: '#92400e', err: '#b91c1c', info: '#0f5f8f' },
+    configTipos: ['PQS ABC', 'CO2', 'AFFF (espuma)', 'AGUA a presión', 'BC', 'Clase K (cocina)'],
+    configUbicaciones: ['Planta Compresora', 'Módulo POB (Personal Offshore)', 'Área de Tanques de Almacenamiento', 'Muelle de Carguío', 'Taller de Mantenimiento', 'Subestación Eléctrica', 'Almacén Químico', 'Oficinas', 'Planta eléctrica'],
   }
 }
 

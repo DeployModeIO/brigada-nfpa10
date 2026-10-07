@@ -3,23 +3,48 @@
  * Tailwind mapeadas en global.css: bg-bg, bg-surface, text-text, text-ok, border-border...).
  * PROHIBIDO usar hex sueltos en componentes. El brand oscuro/claro puede sobrescribirse
  * en runtime con CSS vars desde /public-config (ConfigContext).
+ *
+ * V2.1 O&G (DEC BRIGADA-O&G): transformación al estándar de la industria.
+ * · Tema CLARO = HMI de Alto Desempeño (Rockwell PROCES-WP023): fondo gris industrial
+ *   neutro, color SOLO para estado/alarmas. Paleta AA (≥4.5) sobre surface y bg.
+ * · Tema SOLARIZED = Solarized Dark oficial (base03/base02/base1/base2) con acentos
+ *   aclarados para cumplir WCAG AA sobre base02/base03 (documentado por token).
+ * · Tema OSCURO = heredado V1 (sin cambios). Tema LECTURA = heredado V1.
  */
 :root,
 [data-theme='light'] {
-  --bg: #f3f4f6;
-  --bg2: #e5e7eb;
+  --bg: #e8eaed;
+  --bg2: #dfe3e6;
   --surface: #ffffff;
-  --text: #111827;
-  --text2: #4b5563;
-  --primary: #0369a1;
-  --ok: #047857;
+  --text: #1a2228;
+  --text2: #46555e;
+  --primary: #0f5f8f;
+  --ok: #1a6f36;
   --warn: #92400e;
   --err: #b91c1c;
-  --info: #0369a1;
-  --ring: #3b82f6;
-  --border: #d1d5db;
+  --info: #0f5f8f;
+  --ring: #0f5f8f;
+  --border: #c9d1d6;
   --on-primary: #ffffff;
-  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --line-body: 1.5;
+}
+
+[data-theme='solarized'] {
+  --bg: #002b36;       /* base03 */
+  --bg2: #073642;      /* base02 */
+  --surface: #093d4a;  /* base02 ajustada para paneles */
+  --text: #eee8d5;     /* base2  */
+  --text2: #9db3b3;    /* base1 aclarado AA */
+  --primary: #5cb3de;  /* blue AA */
+  --ok: #9cb429;       /* green AA */
+  --warn: #d1a319;     /* yellow AA */
+  --err: #f28b85;      /* red AA */
+  --info: #5cb3de;
+  --ring: #5cb3de;
+  --border: #12586b;
+  --on-primary: #002b36;
+  --font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --line-body: 1.5;
 }
 

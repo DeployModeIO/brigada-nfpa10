@@ -89,12 +89,12 @@ test('independencia: cero imports relativos fuera de client/src y cero refs exte
   assert.ok(!/mineria|\.\.\/\.\.\/|file:|github:|git\+/.test(deps), 'package.json client con referencias externas')
 })
 
-test('independencia: manifest, título y theme-color propios', () => {
+test('independencia: manifest, título y theme-color propios (V2.1 O&G)', () => {
   const mf = JSON.parse(leer('public/manifest.webmanifest'))
-  assert.equal(mf.name, 'Brigada NFPA-10 DeployModeIO')
-  assert.equal(mf.short_name, 'Brigada NFPA-10')
-  assert.equal(mf.theme_color, '#f3f4f6')
+  assert.equal(mf.name, 'BRIGADA O&G DeployModeIO')
+  assert.equal(mf.short_name, 'BRIGADA O&G')
+  assert.equal(mf.theme_color, '#e8eaed')
   const html = leer('index.html')
-  assert.ok(html.includes('<title>Brigada NFPA-10 · DeployModeIO</title>'), 'título propio')
+  assert.ok(html.includes('<title>BRIGADA O&G · DeployModeIO</title>'), 'título propio')
   assert.ok(html.includes('rel="icon"') && html.includes('/icons/icon.svg'), 'favicon propio')
 })

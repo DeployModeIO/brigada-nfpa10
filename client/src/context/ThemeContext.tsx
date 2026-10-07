@@ -1,17 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-export type Tema = 'dark' | 'light' | 'read'
+export type Tema = 'light' | 'solarized' | 'dark' | 'read'
 
-export const TEMAS: Tema[] = ['dark', 'light', 'read']
+export const TEMAS: Tema[] = ['light', 'solarized', 'dark', 'read']
 export const TEMA_STORAGE_KEY = 'nfpa_tema'
 
 export const TEMA_ETIQUETA: Record<Tema, string> = {
+  light: 'Claro (HMI industrial)',
+  solarized: 'Solarized Dark',
   dark: 'Oscuro',
-  light: 'Claro',
   read: 'Lectura (alto contraste)',
 }
 
-/** Ciclo puro dark→light→read→dark (exportado para tests smoke). */
+/** Ciclo puro light→solarized→dark→read→light (exportado para tests smoke). */
 export function proximoTema(actual: Tema): Tema {
   const i = TEMAS.indexOf(actual)
   return TEMAS[(i + 1) % TEMAS.length]
@@ -20,7 +21,7 @@ export function proximoTema(actual: Tema): Tema {
 function leerTemaInicial(): Tema {
   try {
     const guardado = localStorage.getItem(TEMA_STORAGE_KEY)
-    if (guardado === 'dark' || guardado === 'light' || guardado === 'read') return guardado
+    if (guardado && (TEMAS as string[]).includes(guardado)) return guardado as Tema
   } catch {
     /* SSR / sin storage */
   }
@@ -30,7 +31,7 @@ function leerTemaInicial(): Tema {
 export interface ThemeContextValue {
   tema: Tema
   setTema: (t: Tema) => void
-  siguienteTema: () => Tema
+  siguienteTema: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)

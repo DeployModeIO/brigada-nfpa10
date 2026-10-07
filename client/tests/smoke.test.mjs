@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const raiz = fileURLToPath(new URL('..', import.meta.url))
 
-test('tokens.css presente con todos los tokens semánticos y 3 temas', () => {
+test('tokens.css presente con todos los tokens semánticos y 4 temas (V2.1 O&G)', () => {
   const p = `${raiz}src/styles/tokens.css`
   assert.ok(existsSync(p), 'falta src/styles/tokens.css')
   const css = readFileSync(p, 'utf8')
@@ -15,6 +15,8 @@ test('tokens.css presente con todos los tokens semánticos y 3 temas', () => {
   assert.ok(css.includes('[data-theme=\'dark\']'), 'falta tema dark')
   assert.ok(css.includes('[data-theme=\'light\']'), 'falta tema light')
   assert.ok(css.includes('[data-theme=\'read\']'), 'falta tema read')
+  assert.ok(css.includes('[data-theme=\'solarized\']'), 'falta tema solarized (V2.1 O&G)')
+  assert.ok(css.includes('#002b36'), 'solarized bg debe ser base03 #002b36')
   assert.ok(css.includes('#10b981'), '--ok debe ser #10b981')
   assert.ok(css.includes('#ef4444'), '--err debe incluir #ef4444')
   assert.ok(css.includes('#fbf8f1'), 'read bg #fbf8f1')
@@ -35,18 +37,19 @@ test('rutas registradas bajo el layout con guard (incluye deep-links)', async ()
   }
 })
 
-test('ThemeContext: ciclo dark → light → read → dark', async () => {
+test('ThemeContext: ciclo light → solarized → dark → read → light (V2.1 O&G)', async () => {
   const { proximoTema, TEMAS } = await import('./.build/theme.mjs')
-  assert.deepEqual(TEMAS, ['dark', 'light', 'read'])
-  assert.equal(proximoTema('dark'), 'light')
-  assert.equal(proximoTema('light'), 'read')
-  assert.equal(proximoTema('read'), 'dark')
+  assert.deepEqual(TEMAS, ['light', 'solarized', 'dark', 'read'])
+  assert.equal(proximoTema('light'), 'solarized')
+  assert.equal(proximoTema('solarized'), 'dark')
+  assert.equal(proximoTema('dark'), 'read')
+  assert.equal(proximoTema('read'), 'light')
 })
 
 test('manifest y service worker válidos; viewport sin user-scalable=no', () => {
   const mf = JSON.parse(readFileSync(`${raiz}public/manifest.webmanifest`, 'utf8'))
-  assert.equal(mf.name, 'Brigada NFPA-10 DeployModeIO')
-  assert.equal(mf.theme_color, '#f3f4f6')
+  assert.equal(mf.name, 'BRIGADA O&G DeployModeIO')
+  assert.equal(mf.theme_color, '#e8eaed')
   assert.ok(mf.icons.some((i) => i.sizes === '192x192') && mf.icons.some((i) => i.sizes === '512x512'))
   assert.ok(existsSync(`${raiz}src/service-worker.js`), 'falta src/service-worker.js')
   const html = readFileSync(`${raiz}index.html`, 'utf8')

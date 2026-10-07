@@ -1,19 +1,22 @@
 'use strict';
-// Motor de vencimientos NFPA 10 (spec brigada-cliente-local §Reglas 2).
+// Motor de vencimientos NFPA 10 + API RP 14G (V2.1 Oil & Gas, DEC BRIGADA-O&G).
 // estado = min(inspección mensual 30 d, recarga 12 m, hidrostática 5/12 a según agente;
 // la fecha de fabricación del cilindro manda). Ventanas de amarillo: inspección ≤7 d
 // (como base), recarga/hidrostática ≤30 d. TODAS las funciones toman `now` y `reglas`
 // inyectables → unit tests con fechas exactas (criterio 4).
+// API RP 14G (offshore): extintores Clase B junto a motores de combustión/turbinas
+// en áreas encerradas; agentes AFFF/PQS/CO2 predominantes en hidrocarburos.
 const DIA_MS = 86400000;
 const MES_MS = 30.44 * DIA_MS;
 const ANIO_MS = 365.25 * DIA_MS;
 
 // Agente NFPA a partir de la columna `agente` o del tipo clásico del brigadista.
-const TIPO_A_AGENTE = { ABC: 'PQS', BC: 'BC', CO2: 'CO2', PW: 'AGUA', AGUA: 'AGUA', FBQ: 'PQS', PQS: 'PQS', K: 'K', HALON: 'BC' };
+const TIPO_A_AGENTE = { ABC: 'PQS', BC: 'BC', CO2: 'CO2', PW: 'AGUA', AGUA: 'AGUA', FBQ: 'PQS', PQS: 'PQS', K: 'K', HALON: 'BC', AFFF: 'AFFF' };
 
 const REGLAS_BASE = { mensual_dias: 30, recarga_meses: 12, hidro_anios: 5, amarillo_insp_dias: 7, amarillo_largo_dias: 30 };
 // Hidrostática NFPA 10: CO2/agua 5 años; PQS en cilindro de acero 12 años.
-const HIDRO_POR_AGENTE = { PQS: 12, CO2: 5, AGUA: 5, BC: 5, K: 5 };
+// AFFF (espuma Oil & Gas, API RP 14G): 5 años.
+const HIDRO_POR_AGENTE = { PQS: 12, CO2: 5, AGUA: 5, BC: 5, K: 5, AFFF: 5 };
 
 function parseTs(v) {
   if (!v) return NaN;
