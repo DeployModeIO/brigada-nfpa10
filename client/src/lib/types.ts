@@ -135,6 +135,7 @@ export interface PublicConfig {
   configTipos?: string[]
   configUbicaciones?: string[]
   configHallazgos?: string[]
+  mapTileUrl?: string | null
 }
 
 /** Usuario vista cliente (mapeado desde `user.username` del API). */

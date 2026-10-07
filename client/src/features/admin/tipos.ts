@@ -11,6 +11,7 @@ export interface SettingsReal {
   configTipos?: string[]
   configUbicaciones?: string[]
   configHallazgos?: string[]
+  mapTileUrl?: string | null
 }
 
 export type EstadoCalculadoReal = 'vigente' | 'por_vencer' | 'vencido' | 'rechazado' | 'sin_inspeccionar'

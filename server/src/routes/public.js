@@ -14,8 +14,10 @@ router.get('/public-config', async (req, res, next) => {
       logoDataUrl: s.logoDataUrl,
       brand: s.brand,
       temaDefault: s.temaDefault,
+      mapTileUrl: s.mapTileUrl,
       configTipos: s.configTipos,
-      configUbicaciones: s.configUbicaciones
+      configUbicaciones: s.configUbicaciones,
+      configHallazgos: s.configHallazgos
     });
   } catch (e) { next(e); }
 });

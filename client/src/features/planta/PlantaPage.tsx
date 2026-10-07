@@ -11,6 +11,8 @@ import { cacheAllExtintores, cachePutMany } from '../../lib/offline'
 import { OfflineIcon } from '../../components/icons'
 import { MapIcon } from '../../components/icons'
 import { areasDe, colorDe, filtrarPins, pinsDe } from './pins'
+import PlantaLeaflet from './PlantaLeaflet'
+import { useConfig } from '../../context/ConfigContext'
 import type { Extinguisher } from '../../lib/types'
 
 interface Resp { items: Extinguisher[]; total: number }
@@ -26,6 +28,8 @@ const ESTADOS: Array<{ v: string; t: string }> = [
 
 export default function PlantaPage() {
   const navigate = useNavigate()
+  const { config } = useConfig()
+  const tileUrl = config.mapTileUrl || ''
   const [items, setItems] = useState<Extinguisher[]>([])
   const [error, setError] = useState<string | null>(null)
   const [sinRed, setSinRed] = useState(false)
@@ -103,6 +107,9 @@ export default function PlantaPage() {
         <p role="status" className="text-sm text-text2">Cargando planta…</p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          {tileUrl ? (
+            <PlantaLeaflet items={visibles} tileUrl={tileUrl} onOpen={(tag) => navigate(`/inspeccion/${encodeURIComponent(tag)}`)} />
+          ) : (
           <svg viewBox="0 0 100 100" className="h-[62vh] w-full lg:h-[74vh]" role="img" aria-label={`Mapa de planta con ${pins.length} pines de extintores`}>
             {/* retícula de referencia de la nave */}
             <g stroke="var(--border)" strokeWidth="0.2">
@@ -125,6 +132,7 @@ export default function PlantaPage() {
               </g>
             ))}
           </svg>
+          )}
           <ul className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border p-2 text-xs text-text2" aria-label="Leyenda de estados">
             <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: 'var(--ok)' }} /> Vigente</li>
             <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: 'var(--warn)' }} /> Por vencer</li>

@@ -85,6 +85,7 @@ interface Settings {
   configTipos: string[]
   configUbicaciones: string[]
   configHallazgos: string[]
+  mapTileUrl: string
 }
 
 interface DemoDb {
@@ -397,6 +398,7 @@ function defaultSettings(): Settings {
       'SCBA con carga de cilindro insuficiente'
     ],
     configUbicaciones: ['Planta Compresora', 'Módulo POB (Personal Offshore)', 'Área de Tanques de Almacenamiento', 'Muelle de Carguío', 'Taller de Mantenimiento', 'Subestación Eléctrica', 'Almacén Químico', 'Oficinas', 'Planta eléctrica'],
+    mapTileUrl: '',
   }
 }
 
@@ -691,6 +693,8 @@ async function handleDemo(path: string, init: RequestInit | undefined): Promise<
       temaDefault: s.temaDefault,
       configTipos: s.configTipos,
       configUbicaciones: s.configUbicaciones,
+      configHallazgos: s.configHallazgos,
+      mapTileUrl: s.mapTileUrl,
     })
   }
 

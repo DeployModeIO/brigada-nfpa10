@@ -13,6 +13,8 @@ const DEFAULTS = {
   temaDefault: 'light',
   webhookUrl: '',
   webhookApi: '',
+  // Mapa geográfico opcional (V2.1 O&G): OpenStreetMap sin API key. Vacío = plano SVG offline.
+  mapTileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   brand: { primary: '#0ea5e9', ok: '#22c55e', warn: '#eab308', err: '#ef4444', info: '#3b82f6' },
   configTipos: [],
   configUbicaciones: [],
@@ -55,6 +57,7 @@ async function loadSettings() {
     if (map[k] !== undefined && map[k] !== '') s[k] = map[k];
   }
   if (map.logoDataUrl !== undefined) s.logoDataUrl = map.logoDataUrl; // permite limpiarlo a ''
+  if (map.mapTileUrl !== undefined) s.mapTileUrl = map.mapTileUrl; // permite vacío = plano offline
   for (const b of BRAND_KEYS) {
     const v = map[`brand.${b}`];
     if (v !== undefined && v !== '') s.brand[b] = v;
@@ -118,6 +121,11 @@ router.patch('/settings', auth, requireRole('admin'), async (req, res, next) => 
     }
     if (body.webhookApi !== undefined) {
       updates.webhookApi = cleanStr(body.webhookApi, 256) || '';
+    }
+    if (body.mapTileUrl !== undefined) {
+      const v = body.mapTileUrl === '' ? '' : cleanStr(body.mapTileUrl, 512);
+      if (v && !/^https?:\/\//.test(v)) return bad(res, 'mapTileUrl debe ser vacío o una URL http(s)');
+      updates.mapTileUrl = v;
     }
     if (body.brand !== undefined) {
       if (typeof body.brand !== 'object' || body.brand === null) return bad(res, 'brand debe ser un objeto');
