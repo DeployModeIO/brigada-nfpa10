@@ -172,6 +172,8 @@ router.post('/extinguishers', auth, requireRole('admin'), async (req, res, next)
     );
     const row = await db.get('SELECT * FROM extintores WHERE tag = ?', [rec.tag]);
     res.status(201).json(await withEstado(row));
+    // Tiempo real (V2.1 O&G): el nuevo equipo aparece en los tableros al instante.
+    require('../lib/eventos').publicarEvento('equipo_creado', { tag: rec.tag, area: rec.ubicacion });
   } catch (e) { next(e); }
 });
 
@@ -200,6 +202,8 @@ router.delete('/extinguishers/:tag', auth, requireRole('admin'), async (req, res
     const r = await db.run('UPDATE extintores SET activo = 0, updated_at = ? WHERE tag = ? AND activo = 1', [new Date().toISOString(), tag]);
     if (!r.changes) return res.status(404).json({ error: 'not_found', msg: 'Extintor no encontrado' });
     res.json({ ok: true, tag, activo: false });
+    // Tiempo real (V2.1 O&G): baja de equipo difundida a los tableros.
+    require('../lib/eventos').publicarEvento('equipo_baja', { tag });
   } catch (e) { next(e); }
 });
 

@@ -30,6 +30,32 @@ export default function DashboardPage() {
 
   useEffect(cargar, [cargar])
 
+  /* Tiempo real (V2.1 O&G): SSE — el tablero se refresca solo cuando el
+     campo registra una inspección o el admin crea/baja un equipo. */
+  useEffect(() => {
+    let fuente: EventSource | null = null
+    let reintentar: ReturnType<typeof setTimeout> | null = null
+    const conectar = () => {
+      try {
+        const token = localStorage.getItem('nfpa_token') ?? ''
+        fuente = new EventSource(`/api/v1/events?token=${encodeURIComponent(token)}`)
+        const refrescar = () => cargar()
+        for (const tipo of ['inspeccion_creada', 'equipo_creado', 'equipo_baja']) {
+          fuente.addEventListener(tipo, refrescar)
+        }
+        fuente.onerror = () => {
+          fuente?.close()
+          reintentar = setTimeout(conectar, 15_000) // reconexión suave cada 15 s
+        }
+      } catch { /* SSE no disponible: el botón refrescar sigue funcionando */ }
+    }
+    conectar()
+    return () => {
+      fuente?.close()
+      if (reintentar) clearTimeout(reintentar)
+    }
+  }, [cargar])
+
   const items7d: PanelItem[] = panel
     ? [...panel.verde, ...panel.amarillo, ...panel.rojo]
     : []

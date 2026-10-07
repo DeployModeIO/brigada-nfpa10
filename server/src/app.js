@@ -10,6 +10,7 @@ const publicRoutes = require('./routes/public');
 const extintoresRoutes = require('./routes/extintores');
 const checklistRoutes = require('./routes/checklist');
 const inspeccionesRoutes = require('./routes/inspecciones');
+const eventsRoutes = require('./routes/events');
 const alerts = require('./routes/alerts');
 const exportRoutes = require('./routes/export');
 const settings = require('./routes/settings');
@@ -49,6 +50,7 @@ function buildApp() {
   api.use(extintoresRoutes);
   api.use(checklistRoutes);
   api.use(inspeccionesRoutes);
+  api.use(eventsRoutes);
   api.use(alerts.router);
   api.use(exportRoutes);
   api.use(settings.router);

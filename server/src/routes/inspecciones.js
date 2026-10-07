@@ -127,6 +127,12 @@ router.post('/inspections', auth, async (req, res, next) => {
       extintor: { tag: row.tag, ultima_inspeccion: row.ultima_inspeccion, proximo_vencimiento: row.proximo_vencimiento, estado_inspeccion: row.estado_inspeccion, rechazado: row.rechazado }
     });
 
+    // Tiempo real (V2.1 O&G): avisar a todos los tableros conectados vía SSE.
+    require('../lib/eventos').publicarEvento('inspeccion_creada', {
+      tag: ext.tag, area: ext.ubicacion, inspector: req.user.username,
+      estado_inspeccion, rechazado: rechazado === 1
+    });
+
     if (fallas.length) {
       sendEvent('inspeccion_con_fallas', {
         tag: ext.tag, ubicacion: ext.ubicacion, inspector: req.user.username,
