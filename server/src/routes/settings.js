@@ -7,7 +7,7 @@ const { bad, cleanStr, COLOR_RE, URL_RE } = require('../middleware/validate');
 const router = express.Router();
 
 const DEFAULTS = {
-  appName: 'Brigada NFPA 10',
+  appName: 'BRIGADA O&G',
   jefeBrigada: '',
   logoDataUrl: '',
   temaDefault: 'light',

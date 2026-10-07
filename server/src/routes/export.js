@@ -27,7 +27,7 @@ router.get('/export/extinguishers.xlsx', auth, async (req, res, next) => {
     const rows = await db.all('SELECT * FROM extintores WHERE activo = 1 ORDER BY tag ASC');
     const reglas = await nfpa.obtenerReglas();
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Brigada NFPA 10';
+    wb.creator = 'BRIGADA O&G';
     wb.description = EXPORT_VERSION;
     wb.created = new Date();
     const ws = wb.addWorksheet('Extintores');
