@@ -5,11 +5,12 @@
  * real puede no responder (offline), el rol también se decodifica del JWT (sesion.ts).
  */
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { TEMA_ETIQUETA, TEMAS, useTheme, type Tema } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { pendingCount } from '../../lib/offline'
-import { AlertIcon, GearIcon } from '../../components/icons'
+import { AlertIcon, DownloadIcon, GearIcon } from '../../components/icons'
 import { rolDesdeToken } from './sesion'
 import { leerTipos, leerUbicaciones } from './listasConfig'
 import ChecklistSection from './ChecklistSection'
@@ -115,6 +116,25 @@ export default function AdminSettingsPage() {
           Vista de supervisor: puede revisar la configuración, no modificarla.
         </p>
       )}
+
+      <div className="col-span-full rounded-xl border border-border bg-surface p-4">
+        <p className="text-sm font-semibold">Datos de terreno</p>
+        <p className="mt-1 text-sm text-text2">
+          Importe al PC las capturas exportadas por el teléfono de terreno (archivo JSON{' '}
+          <span className="font-mono">brigada.export/v1</span>).
+        </p>
+        <Link
+          to="/importar-terreno"
+          className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-lg border border-primary bg-primary/10 px-4 text-sm font-semibold text-primary sm:w-auto"
+        >
+          <DownloadIcon size={18} className="rotate-180" /> Importar capturas de terreno
+        </Link>
+        {esAdmin === false && (
+          <p className="mt-2 text-xs text-info" role="note">
+            Requiere rol admin: el servidor responde 403 si su rol no lo permite.
+          </p>
+        )}
+      </div>
 
       <div className="min-w-0">
         <ChecklistSection esAdmin={esAdmin} soloLectura={!esAdmin} />

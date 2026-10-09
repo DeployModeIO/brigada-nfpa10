@@ -20,6 +20,8 @@ const ExportPage = feature('export', () => import('./features/export/ExportPage'
 const AdminSettingsPage = feature('admin', () => import('./features/admin/AdminSettingsPage'))
 const ExtinguisherListPage = feature('extinguishers', () => import('./features/extinguishers/ExtinguisherListPage'))
 const PlantaPage = feature('planta', () => import('./features/planta/PlantaPage'))
+const ExportarPage = feature('terreno', () => import('./features/terreno/ExportarPage'))
+const ImportarTerrenoPage = feature('admin', () => import('./features/admin/ImportarTerrenoPage'))
 
 function Cargando() {
   return (
@@ -63,8 +65,10 @@ export const routes: RouteObject[] = [
       { path: 'inspeccion/:tag', element: <InspectionFormPage /> },
       { path: 'planta', element: <PlantaPage /> },
       { path: 'alertas', element: <AlertsPage /> },
+      { path: 'exportar', element: <ExportarPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'admin', element: <AdminSettingsPage /> },
+      { path: 'importar-terreno', element: <ImportarTerrenoPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
