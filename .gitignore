@@ -13,3 +13,6 @@ server/dist-portable/
 *.keystore
 *.keystore.properties
 **/*.keystore
+
+# Bundle de entrega (binarios/ZIP/proyecto Android): NO se versiona
+entrega/

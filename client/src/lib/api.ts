@@ -8,7 +8,7 @@
  */
 import { installDemoFetch } from './demoMock'
 import { MODO_CAPTURA } from './modo'
-import { esNativo, leerApiBaseGuardada } from './nativo'
+import { esNativo, leerApiBaseConfigurada } from './nativo'
 
 export * from './types'
 export { esNativo } from './nativo'
@@ -77,7 +77,9 @@ export let API_BASE: string = resolverApiBase({
  */
 export async function inicializarApiBase(): Promise<string> {
   const isNative = await esNativo()
-  const stored = isNative ? await leerApiBaseGuardada() : null
+  // A0: base configurable (Preferences en nativo, store de ajustes en web). Si no hay
+  // valor guardado, la resolución sigue exactamente igual que antes (env/origen/default).
+  const stored = await leerApiBaseConfigurada()
   API_BASE = resolverApiBase({ envUrl: env().VITE_API_URL, isNative, stored, origin: origenActual() })
   return API_BASE
 }

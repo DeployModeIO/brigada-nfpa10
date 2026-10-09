@@ -21,6 +21,7 @@ const AdminSettingsPage = feature('admin', () => import('./features/admin/AdminS
 const ExtinguisherListPage = feature('extinguishers', () => import('./features/extinguishers/ExtinguisherListPage'))
 const PlantaPage = feature('planta', () => import('./features/planta/PlantaPage'))
 const ExportarPage = feature('terreno', () => import('./features/terreno/ExportarPage'))
+const ConfigurarServidorPage = feature('terreno', () => import('./features/terreno/ConfigurarServidorPage'))
 const ImportarTerrenoPage = feature('admin', () => import('./features/admin/ImportarTerrenoPage'))
 
 function Cargando() {
@@ -66,6 +67,7 @@ export const routes: RouteObject[] = [
       { path: 'planta', element: <PlantaPage /> },
       { path: 'alertas', element: <AlertsPage /> },
       { path: 'exportar', element: <ExportarPage /> },
+      { path: 'servidor', element: <ConfigurarServidorPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'admin', element: <AdminSettingsPage /> },
       { path: 'importar-terreno', element: <ImportarTerrenoPage /> },

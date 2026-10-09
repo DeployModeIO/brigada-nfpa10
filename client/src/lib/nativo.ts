@@ -146,3 +146,77 @@ export async function escanearNativo(): Promise<string | null> {
     return null
   }
 }
+// ─── A0: base de servidor configurable en runtime (pantalla "Configurar servidor") ───
+
+/**
+ * Valida que un texto tenga forma de URL de servidor http(s)://host[:puerto][/ruta].
+ * Helper PURO (testeable en node): exige esquema http/https y un hostname parseable.
+ */
+export function esUrlServidorValida(valor: string | null | undefined): boolean {
+  if (typeof valor !== 'string') return false
+  const s = valor.trim()
+  if (!/^https?:\/\//i.test(s)) return false
+  try {
+    const u = new URL(s)
+    return Boolean(u.hostname)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Normaliza la URL del servidor para el contrato del cliente (base + /api/v1):
+ * recorta espacios y barras finales y añade el sufijo /api/v1 si no lo lleva.
+ */
+export function normalizarUrlServidor(valor: string): string {
+  let s = (valor ?? '').trim().replace(/\/+$/, '')
+  if (s && !/\/api\/v\d+$/i.test(s)) s = `${s}/api/v1`
+  return s
+}
+
+/**
+ * Base de API configurada en el dispositivo: Preferences 'apiBase' en nativo,
+ * store de ajustes (IndexedDB) en web. null si no hay valor guardado.
+ */
+export async function leerApiBaseConfigurada(): Promise<string | null> {
+  if (await esNativo()) return leerApiBaseGuardada()
+  try {
+    const mod = (await import('./offline')) as unknown as {
+      getSetting?: <T = unknown>(k: string) => Promise<T | undefined>
+    }
+    const v = await mod?.getSetting?.<string>('apiBase')
+    const s = (typeof v === 'string' ? v : '').trim()
+    return s || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Guarda (o limpia, con cadena vacía) la base de API: Preferences 'apiBase' en nativo,
+ * store de ajustes IndexedDB en web. Nunca lanza; el llamador informa del resultado.
+ */
+export async function guardarApiBase(valor: string): Promise<void> {
+  const v = (valor ?? '').trim()
+  if (await esNativo()) {
+    try {
+      const mod = (await import('@capacitor/preferences')) as unknown as {
+        Preferences?: { set: (o: { key: string; value: string }) => Promise<void> }
+      }
+      if (mod?.Preferences?.set) {
+        await mod.Preferences.set({ key: 'apiBase', value: v })
+        return
+      }
+    } catch {
+      /* plugin no disponible → degradar al store web */
+    }
+  }
+  try {
+    const mod = (await import('./offline')) as unknown as {
+      setSetting?: (k: string, value: unknown) => Promise<void>
+    }
+    await mod?.setSetting?.('apiBase', v)
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}

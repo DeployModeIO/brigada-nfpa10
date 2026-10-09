@@ -5,8 +5,9 @@
  * Con el modo apagado la página sigue funcionando sobre lo que quede en la cola.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { AlertIcon, ClipboardIcon, DownloadIcon, InfoIcon } from '../../components/icons'
+import { AlertIcon, ClipboardIcon, DownloadIcon, GearIcon, InfoIcon } from '../../components/icons'
 import { contarCola, listarCola, type ColaItem } from '../../lib/offline'
 import { MODO_CAPTURA } from '../../lib/modo'
 import { fechaHora } from '../inspection/apiTypes'
@@ -96,6 +97,12 @@ export default function ExportarPage() {
       <h1 id="titulo-exportar" className="text-xl font-semibold">
         Exportar capturas de terreno
       </h1>
+      <Link
+        to="/servidor"
+        className="flex min-h-12 w-fit items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-text2 hover:bg-bg2 hover:text-text"
+      >
+        <GearIcon size={18} /> Configurar servidor del PC
+      </Link>
 
       {!MODO_CAPTURA && (
         <p role="status" className="flex items-center gap-2 rounded-lg border border-info bg-info/10 px-3 py-2 text-sm font-medium text-info">

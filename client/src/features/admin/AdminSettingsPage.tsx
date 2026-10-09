@@ -129,6 +129,12 @@ export default function AdminSettingsPage() {
         >
           <DownloadIcon size={18} className="rotate-180" /> Importar capturas de terreno
         </Link>
+        <Link
+          to="/servidor"
+          className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text2 hover:bg-bg2 hover:text-text sm:w-auto"
+        >
+          <GearIcon size={18} /> Configurar servidor (dirección del PC)
+        </Link>
         {esAdmin === false && (
           <p className="mt-2 text-xs text-info" role="note">
             Requiere rol admin: el servidor responde 403 si su rol no lo permite.
