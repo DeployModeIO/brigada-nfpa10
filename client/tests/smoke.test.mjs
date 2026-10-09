@@ -69,6 +69,10 @@ test('Criterio 16 (runtime): ningún fetch/URL remota en el código de src', () 
       const frag = txt.split('\n')[linea - 1]
       if (/^\s*(\/\/|\/\*|\*)/.test(frag)) continue // comentario
       if (/https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/.test(m[0])) continue // red interna del cliente: no es CDN
+      // Excepción aprobada (docs/adr/ADR-001 §Mapas): mapa real a coste CERO. Se permiten
+      // SOLO los dominios de tiles/atribución de OpenStreetMap y el deep-link de Google Maps;
+      // cualquier OTRA URL externa sigue siendo una ofensa.
+      if (/openstreetmap\.org|google\.com/.test(m[0])) continue
       ofensas.push(`${f.replace(raiz, '')}:${linea} ${m[0]}`)
     }
   }
@@ -86,6 +90,10 @@ test('Criterio 16 (build): dist/index.html sin recursos externos si el build exi
   const p = `${raiz}dist/index.html`
   if (!existsSync(p)) return // se valida tras npm run build en el pipeline
   const html = readFileSync(p, 'utf8')
-  const remotas = (html.match(/https?:\/\/[^\s"'<>)]+/g) || []).filter((u) => !/localhost|127\.0\.0\.1/.test(u))
+  // Misma excepción que el guard de src (docs/adr/ADR-001 §Mapas): las URLs de Leaflet/OSM
+  // viven en el JS, no en index.html, pero se admite igual el mapa real a coste cero.
+  const remotas = (html.match(/https?:\/\/[^\s"'<>)]+/g) || [])
+    .filter((u) => !/localhost|127\.0\.0\.1/.test(u))
+    .filter((u) => !/openstreetmap\.org|google\.com/.test(u))
   assert.deepEqual(remotas, [], `recursos externos en dist:\n${remotas.join('\n')}`)
 })

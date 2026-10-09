@@ -1,17 +1,25 @@
 /**
- * /planta — mapa SVG interactivo de la faena (spec brigada-cliente-local pantalla 9).
- * Pines por estado (verde/ámbar/rojo/negro + gris sin inspeccionar), filtro por área/nave
- * y por estado, click abre la ficha /inspeccion/:tag. Un hallazgo crítico (pin negro)
- * se ve aquí mismo (spec §Reglas 6). Offline: sirve la caché IndexedDB de /extinguishers.
+ * /planta — mapa de la faena (spec brigada-cliente-local pantalla 9).
+ * Dos vistas conmutables:
+ *   · Mapa (por defecto): mapa REAL Leaflet + OpenStreetMap (decisión docs/adr/ADR-001),
+ *     marca la posición del propio dispositivo y da "Abrir en Google Maps" por equipo.
+ *   · Plano (SVG): el croquis decorativo de siempre, con pines por estado.
+ * Filtro por área/nave y por estado. Tocar un pin/equipo abre la ficha /inspeccion/:tag.
+ * Un hallazgo crítico (pin negro) se ve aquí mismo (spec §Reglas 6). Offline: sirve la
+ * caché IndexedDB de /extinguishers; los equipos sin coordenadas quedan en el plano/buscar.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { cacheAllExtintores, cachePutMany } from '../../lib/offline'
 import { OfflineIcon } from '../../components/icons'
 import { MapIcon } from '../../components/icons'
 import { areasDe, colorDe, filtrarPins, pinsDe } from './pins'
+import { puntosGeoDe, sinCoordenadas } from './mapaGeo'
 import type { Extinguisher } from '../../lib/types'
+
+// Carga diferida: Leaflet toca `window` al importarse, así no entra en el bundle de tests.
+const MapaReal = lazy(() => import('./MapaReal'))
 
 interface Resp { items: Extinguisher[]; total: number }
 
@@ -24,6 +32,27 @@ const ESTADOS: Array<{ v: string; t: string }> = [
   { v: 'sin_inspeccionar', t: 'Sin inspeccionar' },
 ]
 
+const LEYENDA: Array<{ token: string; texto: string; borde?: boolean }> = [
+  { token: 'var(--ok)', texto: 'Vigente' },
+  { token: 'var(--warn)', texto: 'Por vencer' },
+  { token: 'var(--err)', texto: 'Vencido' },
+  { token: 'var(--text)', texto: 'Rechazado (NO APTO)', borde: true },
+  { token: 'var(--text2)', texto: 'Sin inspeccionar' },
+]
+
+function Leyenda({ className = '' }: { className?: string }) {
+  return (
+    <ul className={`flex flex-wrap gap-x-4 gap-y-1 text-xs text-text2 ${className}`} aria-label="Leyenda de estados">
+      {LEYENDA.map((l) => (
+        <li key={l.texto} className="flex items-center gap-1">
+          <span className={`inline-block h-2.5 w-2.5 rounded-full${l.borde ? ' border border-border' : ''}`} style={{ background: l.token }} />
+          {l.texto}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function PlantaPage() {
   const navigate = useNavigate()
   const [items, setItems] = useState<Extinguisher[]>([])
@@ -32,6 +61,7 @@ export default function PlantaPage() {
   const [area, setArea] = useState('')
   const [estado, setEstado] = useState('')
   const [cargando, setCargando] = useState(true)
+  const [vista, setVista] = useState<'mapa' | 'plano'>('mapa')
 
   useEffect(() => {
     let vivo = true
@@ -55,14 +85,27 @@ export default function PlantaPage() {
   const areas = useMemo(() => areasDe(items), [items])
   const visibles = useMemo(() => filtrarPins(items, area, estado), [items, area, estado])
   const pins = useMemo(() => pinsDe(visibles), [visibles])
+  const puntos = useMemo(() => puntosGeoDe(visibles), [visibles])
+  const sinCoord = useMemo(() => sinCoordenadas(visibles), [visibles])
   const negros = pins.filter((p) => p.estado === 'rechazado').length
+
+  const claseVista = (activa: boolean) =>
+    `min-h-9 px-3 text-sm font-medium ${activa ? 'bg-primary text-on-primary' : 'bg-surface text-text2'}`
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="titulo-planta">
-      <header className="flex items-center gap-2">
+      <header className="flex flex-wrap items-center gap-2">
         <MapIcon size={22} className="text-primary" />
         <h1 id="titulo-planta" className="text-lg font-bold text-text">Planta — mapa de extintores</h1>
-        <span className="ml-auto text-xs text-text2">{pins.length} equipos</span>
+        <div role="group" aria-label="Vista del mapa" className="ml-auto flex overflow-hidden rounded-lg border border-border">
+          <button type="button" aria-pressed={vista === 'mapa'} onClick={() => setVista('mapa')} className={claseVista(vista === 'mapa')} aria-label="Ver mapa real">
+            Mapa
+          </button>
+          <button type="button" aria-pressed={vista === 'plano'} onClick={() => setVista('plano')} className={claseVista(vista === 'plano')} aria-label="Ver plano esquemático">
+            Plano (SVG)
+          </button>
+        </div>
+        <span className="text-xs text-text2">{pins.length} equipos</span>
       </header>
 
       {sinRed && (
@@ -95,15 +138,33 @@ export default function PlantaPage() {
           </select>
         </label>
         <p className="text-xs text-text2 lg:mt-1">{pins.length} de {items.length} equipos visibles</p>
-        <p className="hidden text-xs text-text2 lg:block">Toca un pin para abrir la ficha de inspección del equipo (funciona offline con la caché).</p>
+        <p className="hidden text-xs text-text2 lg:block">Toca un equipo para abrir la ficha de inspección (funciona offline con la caché).</p>
       </div>
 
       <div className="order-1 min-w-0 flex-1 lg:order-1">
       {cargando ? (
         <p role="status" className="text-sm text-text2">Cargando planta…</p>
+      ) : vista === 'mapa' ? (
+        <div className="flex flex-col gap-2">
+          <Suspense fallback={<p role="status" className="text-sm text-text2">Cargando mapa…</p>}>
+            <MapaReal
+              puntos={puntos}
+              onAbrirFicha={(tag) => navigate(`/inspeccion/${encodeURIComponent(tag)}`)}
+              etiqueta={`Mapa real con ${puntos.length} equipos con coordenadas`}
+            />
+          </Suspense>
+          {sinCoord > 0 && (
+            <p className="text-xs text-text2">
+              {sinCoord} equipo(s) sin coordenadas no se muestran en el mapa real; siguen accesibles en el
+              plano (SVG) y en la búsqueda.
+            </p>
+          )}
+          <Leyenda className="rounded-lg border border-border bg-surface p-2" />
+          <p className="text-xs text-text2">Toca un equipo en el mapa para abrir su ficha o su deep-link a Google Maps.</p>
+        </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-surface">
-          <svg viewBox="0 0 100 100" className="h-[62vh] w-full lg:h-[74vh]" role="img" aria-label={`Mapa de planta con ${pins.length} pines de extintores`}>
+          <svg viewBox="0 0 100 100" className="h-[62vh] w-full lg:h-[74vh]" role="img" aria-label={`Plano esquemático con ${pins.length} pines de extintores`}>
             {/* retícula de referencia de la nave */}
             <g stroke="var(--border)" strokeWidth="0.2">
               {[10, 30, 50, 70, 90].map((v) => <line key={`h${v}`} x1="4" y1={v} x2="96" y2={v} />)}
@@ -125,16 +186,10 @@ export default function PlantaPage() {
               </g>
             ))}
           </svg>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border p-2 text-xs text-text2" aria-label="Leyenda de estados">
-            <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: 'var(--ok)' }} /> Vigente</li>
-            <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: 'var(--warn)' }} /> Por vencer</li>
-            <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: 'var(--err)' }} /> Vencido</li>
-            <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: 'var(--text)' }} /> Rechazado (NO APTO)</li>
-            <li className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: 'var(--text2)' }} /> Sin inspeccionar</li>
-          </ul>
+          <Leyenda className="border-t border-border p-2" />
         </div>
       )}
-      <p className="mt-2 text-xs text-text2 lg:hidden">Toca un pin para abrir la ficha de inspección del equipo (funciona offline con la caché).</p>
+      <p className="mt-2 text-xs text-text2 lg:hidden">Toca un equipo para abrir la ficha de inspección del equipo (funciona offline con la caché).</p>
       </div>
       </div>
     </section>
