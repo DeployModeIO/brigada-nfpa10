@@ -37,6 +37,29 @@ volumen `brigada-data`; **es la fuente de verdad** y debe respaldarse.
 cd server && npm install && cp .env.example .env && npm run seed && npm run dev
 ```
 
+### 1.4 Operación local (PC de faena)
+
+Arranque persistente del portable (sobrevive al cierre del terminal), con log en la
+propia carpeta:
+
+```bash
+mkdir -p ~/servidor-brigada && cd ~/servidor-brigada
+cp /ruta/a/entrega/PC-SERVIDOR/BrigadaDemo-linux-x64 .
+PORT=3205 setsid nohup ./BrigadaDemo-linux-x64 > servidor.log 2>&1 &
+```
+
+- **BD SQLite**: se crea **junto al binario**, en `~/servidor-brigada/brigadademo.db`.
+- **Parar** el servidor:
+  ```bash
+  pgrep -f BrigadaDemo    # localizar el PID
+  kill <pid>
+  ```
+- **Copia de seguridad**: basta con copiar la BD (idealmente con el servidor parado):
+  `cp brigadademo.db respaldos/brigadademo-$(date +%Y%m%d-%H%M).db`
+- **Aviso**: en el primer arranque (BD vacía) se siembran **usuarios demo** con
+  contraseñas conocidas (`DEMO_SEED`). Para uso real: cambiar las contraseñas de
+  inmediato o desactivar el seed (`DEMO_SEED=0`).
+
 ---
 
 ## 2. CORS: `ALLOW_ORIGIN`
