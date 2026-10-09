@@ -141,3 +141,23 @@ curl -s http://<IP-PC>:8080/health
 cd server && npm run test:unit                       # incluye tests/import_e2e.test.js
 cd server && SMOKE_PORT=3299 npm run test:smoke      # usar un puerto libre
 ```
+
+---
+
+## 7. Seguridad (transporte)
+
+- **El APK de campo habla HTTP en claro con el servidor del PC dentro de la LAN.** Eso es
+  **SOLO para pruebas / test de campo** en una red de confianza. En ese escenario el
+  **Bearer token viaja sin cifrar** y puede ser interceptado por cualquiera en el mismo
+  segmento de red.
+- En el APK, `network_security_config.xml` mantiene `base-config
+  cleartextTrafficPermitted="false"` y solo permite la IP LAN del PC mediante un
+  `<domain-config>` comentado (descomentar y sustituir la IP real para el test). El
+  `allowMixedContent` de `capacitor.config.ts` está igualmente marcado como TEST-only.
+- **Producción: usar HTTPS.** Servir el servidor por HTTPS, dejar el `base-config` en
+  `false`, NO descomentar ningún `<domain-config>` y poner `android.allowMixedContent` en
+  `false`. Con HTTPS el token viaja cifrado.
+- El APK fija `android:allowBackup="false"` para impedir que el JWT (localStorage/IndexedDB
+  del WebView) se extraiga por `adb backup`/auto-backup.
+
+Referencia: `client/CAPACITOR.md` §7 y `docs/CONTRATO-EXPORT-IMPORT.md`.

@@ -4,17 +4,23 @@
   La app corre en un WebView con esquema https://localhost y habla con el servidor
   portátil del PC por http en la LAN → Android exige permitir tráfico en claro (cleartext).
 
-  AJUSTE DE TEST/PRUEBA DE CAMPO: base-config con cleartextTrafficPermitted="true".
-  Para producción endurecer: fijar SOLO el host del servidor con un <domain-config>
-  (descomentar el bloque de abajo y poner la IP/dominio reales) y dejar el base-config
-  con cleartextTrafficPermitted="false". Ver client/CAPACITOR.md.
+  SEGURIDAD (H1): por defecto el tráfico en claro queda PROHIBIDO (base-config=false).
+  El servidor de campo por http en la LAN requiere una EXCEPCIÓN EXPLÍCITA y acotada con
+  <domain-config>: descomente la plantilla de abajo y sustituya 192.168.1.100 por la IP LAN
+  REAL del PC que corre el servidor (incluya también localhost si usa `adb reverse`).
+
+  IMPORTANTE: esto es SOLO PARA PRUEBAS/TEST DE CAMPO en una LAN de confianza. En
+  producción el servidor debe servirse por HTTPS y este bloque debe permanecer comentado
+  (el base-config ya lo bloquea). Con cleartext, el Bearer token viaja SIN cifrar.
+  Ver client/CAPACITOR.md §7 y docs/DEPLOY.md §7.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="false" />
 
     <!--
+    PLANTILLA TEST/PRUEBA DE CAMPO (sustituir por la IP LAN real del PC):
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.1.10</domain>
+        <domain includeSubdomains="false">192.168.1.100</domain>
         <domain includeSubdomains="false">localhost</domain>
     </domain-config>
     -->

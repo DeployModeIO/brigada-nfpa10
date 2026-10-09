@@ -137,11 +137,24 @@ en nativo **nunca** se usa el origen del WebView. La detección es diferida
 
 `android/app/src/main/res/xml/network_security_config.xml`:
 
-- `base-config cleartextTrafficPermitted="true"` → **ajuste de TEST**: el servidor de campo
-  es http en la LAN. Para producción, endurecer con un `<domain-config>` que fije solo la
-  IP/dominio del servidor (bloque comentado en el propio XML) y volver el base-config a
-  `false`.
-- `capacitor.config.ts` usa `android.allowMixedContent: true` por el mismo motivo.
+- `base-config cleartextTrafficPermitted="false"` → por defecto el tráfico en claro queda
+  **prohibido**. El servidor de campo por http en la LAN exige una excepción **explícita y
+  acotada** con un `<domain-config cleartextTrafficPermitted="true">` que fije SOLO la IP LAN
+  del PC (plantilla comentada en el propio XML; sustituir `192.168.1.100` por la IP real).
+- `capacitor.config.ts` usa `android.allowMixedContent: true` por el mismo motivo (servidor
+  http en la LAN dentro del WebView https).
+
+### Seguridad (transporte)
+
+- El transporte del APK de campo es **HTTP en claro dentro de una LAN de confianza**: es
+  **SOLO para pruebas / test de campo**. En esas condiciones el **Bearer token viaja en
+  claro** por la red y puede ser capturado por cualquiera en el mismo segmento.
+- **Producción: usar HTTPS** (servidor con certificado) y entonces: `base-config` ya está en
+  `cleartextTrafficPermitted="false"`, no se descomenta ningún `<domain-config>`, y
+  `android.allowMixedContent` debe pasar a `false`.
+- **M3:** `AndroidManifest.xml` fija `android:allowBackup="false"` (y
+  `android:fullBackupContent="false"`) para que el WebView (JWT en localStorage/IndexedDB)
+  no pueda extraerse por `adb backup`/auto-backup.
 
 ## 8. Servidor: CORS (`ALLOW_ORIGIN`) y firewall
 

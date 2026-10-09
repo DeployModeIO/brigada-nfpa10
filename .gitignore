@@ -7,3 +7,9 @@ server/bin/
 server/dist-portable/
 # Estado local de los MCP de asistencia (Serena), no del producto
 .serena/
+
+# Firma Android: nunca versionar keystores ni credenciales (L4)
+*.jks
+*.keystore
+*.keystore.properties
+**/*.keystore

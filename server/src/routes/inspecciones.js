@@ -237,8 +237,10 @@ router.post('/inspections', auth, async (req, res, next) => {
 });
 
 // Ingesta fiel desde la app Android de terreno: conserva la fecha de captura y el inspector
-// original, ancla el vencimiento a la captura y es idempotente por captura_id (SELECT, no
-// índice único: portabilidad de dialectos). Body = UN ítem. Solo admin.
+// original, ancla el vencimiento a la captura y es idempotente por captura_id. `captura_id`
+// es OBLIGATORIO (400 si falta). La idempotencia se apoya en el índice UNIQUE de la migración
+// 007_import_dedup: se mantiene el SELECT previo, pero la guarda REAL contra carreras es el
+// UNIQUE + captura de la violación. Body = UN ítem. Solo admin.
 router.post('/inspections/import', auth, requireRole('admin'), async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -246,6 +248,11 @@ router.post('/inspections/import', auth, requireRole('admin'), async (req, res, 
     const archivoHash = cleanStr(meta.archivo_hash, 64);
     const dispositivo = cleanStr(body.dispositivo, 128) || cleanStr(meta.dispositivo, 128) || null;
     const capturaId = cleanStr(body.captura_id, 64);
+    // M1: captura_id es OBLIGATORIO (clave de la deduplicación atómica por índice UNIQUE).
+    if (!capturaId) {
+      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: 'captura_id faltante' });
+      return bad(res, 'captura_id es requerido');
+    }
 
     // creado_en: ISO válida, no futura (>5 min de skew) ni anterior a 2000-01-01.
     const vd = validDate(body.creado_en);
@@ -279,11 +286,24 @@ router.post('/inspections/import', auth, requireRole('admin'), async (req, res, 
     }
 
     const inspectorUsername = cleanStr(body.inspector_username, 64);
-    const r = await registrarInspeccion({
-      body,
-      user: req.user,
-      opciones: { createdIso, capturaId, origen: 'campo', baseTs, importacion: true, inspectorUsername }
-    });
+    let r;
+    try {
+      r = await registrarInspeccion({
+        body,
+        user: req.user,
+        opciones: { createdIso, capturaId, origen: 'campo', baseTs, importacion: true, inspectorUsername }
+      });
+    } catch (e) {
+      // M1: guarda REAL contra carreras. Si dos importaciones del mismo captura_id se cruzan,
+      // el índice UNIQUE aborta la segunda inserción: se responde idempotente (200) en lugar
+      // de propagar un 500. Se cubren mensajes de sqlite/postgres/mysql.
+      const msg = String((e && e.message) || '').toLowerCase();
+      if (msg.includes('unique') || msg.includes('duplicate')) {
+        await registrarImportacion({ archivoHash, dispositivo, duplicados: 1, detalle: `duplicado (UNIQUE) captura_id=${capturaId}` });
+        return res.status(200).json({ duplicado: true, captura_id: capturaId });
+      }
+      throw e;
+    }
 
     if (r.status !== 201) {
       await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: cleanStr(r.payload && r.payload.msg, 500) });

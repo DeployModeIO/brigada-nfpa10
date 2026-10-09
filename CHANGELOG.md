@@ -7,7 +7,36 @@ y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-_Sin cambios pendientes de publicar (próxima versión por definir)._
+### Security
+
+Remediación de la revisión de seguridad de la rama `feat/terreno-android-import`
+(hallazgos H1, M1, M2, M3, L1, L3, L4):
+
+- **H1 (HIGH) — alcance de cleartext Android acotado.** `network_security_config.xml` pasa a
+  `base-config cleartextTrafficPermitted="false"` con una plantilla `<domain-config>`
+  comentada para la IP LAN del PC (TEST/PRUEBA DE CAMPO); `client/capacitor.config.ts`
+  mantiene `allowMixedContent` marcado EXPLÍCITAMENTE como TEST-only (deshabilitar en
+  producción con HTTPS). Nota "Seguridad (transporte)" en `client/CAPACITOR.md` y
+  `docs/DEPLOY.md`: en LAN de confianza el cleartext es solo para pruebas y el Bearer token
+  viaja en claro; producción = HTTPS.
+- **M1 (MEDIUM) — deduplicación atómica + `captura_id` obligatorio.** Nueva migración
+  `007_import_dedup` con índice UNIQUE en `inspecciones(captura_id)`; el endpoint de
+  importación exige `captura_id` (400 si falta) y captura la violación de UNIQUE
+  devolviendo `{ duplicado: true, captura_id }` (200) en lugar de error. El SELECT previo se
+  conserva, pero el índice + catch es la guarda real contra carreras.
+- **M2 (MEDIUM) — fidelidad del inspector de terreno.** `construirPayloadImport` propaga
+  `inspector_username` en cada payload (del ítem si está, si no del manifest del lote);
+  `ImportarTerrenoPage` pasa `lote.inspector_username`.
+- **M3 (MEDIUM) — backup Android deshabilitado.** `AndroidManifest.xml` fija
+  `android:allowBackup="false"` (+ `android:fullBackupContent="false"`) para impedir extraer
+  el JWT del WebView (localStorage/IndexedDB) vía `adb backup`/auto-backup.
+- **L1 (LOW) — límites de cordura en la importación.** La pantalla admin rechaza archivos de
+  más de 50 MB (antes de parsear) y lotes de más de 5000 capturas, con error en español.
+- **L3 (LOW) — CSP compatible con OSM.** helmet se configura partiendo
+  `getDefaultDirectives()` y solo amplía `img-src`/`connect-src` con
+  `*.tile.openstreetmap.org`; el resto de directivas no se debilita.
+- **L4 (LOW) — ignorado de keystores.** `*.jks`, `*.keystore`, `*.keystore.properties` y
+  `**/*.keystore` añadidos a `client/android/.gitignore` y al `.gitignore` raíz.
 
 ## [0.2.0] - 2026-10-09
 

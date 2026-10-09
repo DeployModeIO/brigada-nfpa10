@@ -82,6 +82,27 @@ test('construirPayloadImport: sin meta no añade la clave meta; tag/resultados s
   assert.equal('creado_en' in p, false)
 })
 
+test('construirPayloadImport: propaga inspector_username del ítem (M2)', () => {
+  const p = construirPayloadImport(
+    { tag: 'E-1', resultados: {}, inspector_username: 'jperez' },
+    {},
+    'manifest-user',
+  )
+  assert.equal(p.inspector_username, 'jperez')
+})
+
+test('construirPayloadImport: cae al inspector del manifest del lote (M2)', () => {
+  const p = construirPayloadImport({ tag: 'E-1', resultados: {} }, {}, 'jperez')
+  assert.equal(p.inspector_username, 'jperez')
+})
+
+test('construirPayloadImport: sin inspector (ni ítem ni manifest) omite la clave (M2)', () => {
+  const p = construirPayloadImport({ tag: 'E-1', resultados: {} }, {}, '')
+  assert.equal('inspector_username' in p, false)
+  const p2 = construirPayloadImport({ tag: 'E-2', resultados: {} })
+  assert.equal('inspector_username' in p2, false)
+})
+
 test('resumirImportacion: contadores por estado', () => {
   const resumen = resumirImportacion([
     { tag: 'E-1', estado: 'creado', http: 201 },

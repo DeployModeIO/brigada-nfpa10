@@ -32,6 +32,11 @@ interface RespuestaImport {
   captura_id?: string
 }
 
+// L1: límites de cordura del archivo de terreno antes de procesarlo (evita colgar la pestaña).
+const MAX_ARCHIVO_MB = 50
+const MAX_ARCHIVO_BYTES = MAX_ARCHIVO_MB * 1024 * 1024
+const MAX_ITEMS_LOTE = 5000
+
 const ESTADO_UI: Record<ResultadoImport['estado'], { texto: string; clase: string }> = {
   creado: { texto: 'Creado', clase: 'border-ok text-ok bg-ok/10' },
   duplicado: { texto: 'Duplicado', clase: 'border-info text-info bg-info/10' },
@@ -82,6 +87,11 @@ export default function ImportarTerrenoPage() {
     const f = ev.target.files?.[0]
     if (!f) return
     setArchivo(f.name)
+    // L1: rechazar ANTES de parsear si el archivo es absurdamente grande.
+    if (f.size > MAX_ARCHIVO_BYTES) {
+      setError(`El archivo supera el máximo permitido de ${MAX_ARCHIVO_MB} MB. Divídalo en lotes más pequeños.`)
+      return
+    }
     let texto: string
     try {
       texto = await f.text()
@@ -99,6 +109,11 @@ export default function ImportarTerrenoPage() {
     const v = validarLoteExport(obj)
     if (!v.ok) {
       setError(v.error)
+      return
+    }
+    // L1: rechazar lotes con demasiadas capturas (el reenvío es secuencial).
+    if (v.lote.items.length > MAX_ITEMS_LOTE) {
+      setError(`El lote tiene ${v.lote.items.length} capturas y supera el máximo de ${MAX_ITEMS_LOTE}. Divídalo en lotes más pequeños.`)
       return
     }
     setRawText(texto)
@@ -122,7 +137,7 @@ export default function ImportarTerrenoPage() {
     for (let i = 0; i < total; i++) {
       const item = lote.items[i]
       try {
-        const r = await api.post<RespuestaImport>('/inspections/import', construirPayloadImport(item, meta))
+        const r = await api.post<RespuestaImport>('/inspections/import', construirPayloadImport(item, meta, lote.inspector_username))
         if (r && r.duplicado === true) {
           acumulado.push({ tag: item.tag, captura_id: r.captura_id ?? item.captura_id, estado: 'duplicado', http: 200 })
         } else {

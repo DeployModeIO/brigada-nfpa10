@@ -15,6 +15,8 @@ export interface LoteItem {
   foto_evidencia_base64?: string | null
   gps?: { lat: number; lng: number } | null
   dispositivo?: string | null
+  /** M2: inspector de terreno del propio ítem (si el export lo lleva por captura). */
+  inspector_username?: string | null
 }
 
 /** Lote completo exportado por la app de terreno. Los metadatos del manifest son opcionales. */
@@ -83,10 +85,14 @@ export function validarLoteExport(obj: unknown): { ok: true; lote: LoteExport } 
  * - Incluye `captura_id`, `creado_en` y demás opcionales SOLO si están definidos (null sí cuenta).
  * - `dispositivo` del ítem viaja a nivel raíz (lo admite el contrato).
  * - `archivo_hash`/`dispositivo` del lote van anidados en `meta` (solo si están definidos).
+ * - M2: `inspector_username` se propaga para preservar la identidad del inspector de campo:
+ *   si el ítem lo trae (string no vacío) se usa ese; si no, se cae al del manifest del lote
+ *   (`inspectorManifest`). Si no hay ninguno, se omite la clave. Función PURA.
  */
 export function construirPayloadImport(
   item: LoteItem,
   meta: MetaImport = {},
+  inspectorManifest?: string | null,
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     tag: item.tag,
@@ -98,6 +104,16 @@ export function construirPayloadImport(
   if (item.foto_evidencia_base64 !== undefined) payload.foto_evidencia_base64 = item.foto_evidencia_base64
   if (item.gps !== undefined) payload.gps = item.gps
   if (item.dispositivo !== undefined) payload.dispositivo = item.dispositivo
+
+  // M2: fidelidad del inspector de terreno (ítem > manifest), sin inventar valores.
+  const delItem = typeof item.inspector_username === 'string' && item.inspector_username.trim() !== ''
+    ? item.inspector_username
+    : undefined
+  const delManifest = typeof inspectorManifest === 'string' && inspectorManifest.trim() !== ''
+    ? inspectorManifest
+    : undefined
+  const inspector = delItem ?? delManifest
+  if (inspector !== undefined) payload.inspector_username = inspector
 
   const metaOut: Record<string, unknown> = {}
   if (meta.archivo_hash !== undefined) metaOut.archivo_hash = meta.archivo_hash

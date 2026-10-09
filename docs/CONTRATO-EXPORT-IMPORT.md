@@ -52,7 +52,7 @@ Fichero JSON con nombre `brigada-terreno-YYYYMMDD-HHmm.json`. Objeto raíz (mani
 
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
-| `captura_id` | string | recomendado | UUID de la captura; **clave de deduplicación**. Si falta en origen, `construirExport` lo genera. |
+| `captura_id` | string | **sí (obligatorio en import)** | UUID de la captura; **clave de deduplicación**. Si falta en origen, `construirExport` lo genera. El endpoint de importación lo exige: sin él responde 400. |
 | `creado_en` | ISO string | recomendado | Fecha de captura en el teléfono ⇒ `inspecciones.created_at` y ancla del vencimiento. |
 | `tag` | string | **sí** | Tag del extintor (se normaliza a mayúsculas). |
 | `resultados` | objeto `{clave: bool}` | **sí** | Resultado del checklist. Claves desconocidas ⇒ 400. Claves ausentes se interpretan `false`. |
@@ -100,8 +100,12 @@ metadatos del lote anidados en `meta`:
 - `inspector_username` se resuelve contra `users`: si existe se firma con su identidad; si no,
   firma el admin con nota `importado_terreno:<username>`.
 - `origen = 'campo'`; `captura_id` se persiste tal cual.
-- Idempotencia **a nivel de aplicación** por `captura_id` (SELECT, sin índice único, por
-  portabilidad de dialectos): si ya existe ⇒ no inserta, responde `duplicado:true`.
+- `captura_id` es **obligatorio** (400 si falta o está en blanco).
+- Idempotencia por `captura_id`: SELECT previo **y** índice UNIQUE en
+  `inspecciones(captura_id)` (migración `007_import_dedup`). Si ya existe ⇒ no inserta y
+  responde `duplicado:true`; si dos peticiones del mismo `captura_id` se cruzan, la violación
+  de UNIQUE se captura y también se responde `duplicado:true` (200), nunca 500. El SELECT
+  previo se conserva, pero el índice + catch es la guarda real contra carreras.
 - La habilitación vencida **no rechaza** en importación (queda `importado_hab_vencida`); el
   rechazo por falla crítica del checklist **sí** se aplica (`rechazado=1`) como en línea.
 
@@ -111,7 +115,7 @@ metadatos del lote anidados en `meta`:
 |---|---|---|
 | Creado | `201` | `{ id, tag, fecha, proximo_vencimiento, criticas, rechazado, duplicado:false }` |
 | Duplicado | `200` | `{ duplicado:true, captura_id }` |
-| `creado_en` inválida/futura/anterior a 2000, o `tag` faltante | `400` | `{ error:"bad_request", msg }` |
+| `captura_id` faltante/en blanco, `creado_en` inválida/futura/anterior a 2000, o `tag` faltante | `400` | `{ error:"bad_request", msg }` |
 | Sin token | `401` | `{ error, msg }` |
 | Rol ≠ admin | `403` | `{ error, msg }` |
 | Item con checklist desconocido | `400` | `{ error:"bad_request", msg:"Claves de checklist desconocidas: …" }` |

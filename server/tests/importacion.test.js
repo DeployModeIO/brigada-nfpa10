@@ -1,6 +1,7 @@
 'use strict';
-// Importación fiel (migración 006_importacion): conserva la fecha de captura, el inspector
-// original y ancla el vencimiento NFPA a la captura; idempotente por captura_id (SELECT).
+// Importación fiel (migraciones 006_importacion + 007_import_dedup): conserva la fecha de
+// captura, el inspector original y ancla el vencimiento NFPA a la captura; idempotente por
+// captura_id (SELECT previo + índice UNIQUE como guarda atómica contra carreras).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -153,6 +154,45 @@ test('origen: campo en importación y local en la ruta normal; el rechazo por ha
   const rech = await api('/inspections', { method: 'POST', body: JSON.stringify({ tag: 'EXTF-EXP-026', resultados }) }, brig);
   assert.equal(rech.status, 403);
   assert.equal(rech.body.error, 'habilitacion_vencida');
+});
+
+test('M1: sin captura_id ⇒ 400; índice UNIQUE existe; duplicado ⇒ 200 idempotente', async () => {
+  const { admin } = await tokens();
+  const resultados = await checklist();
+
+  // (a) captura_id es OBLIGATORIO.
+  const sinCap = await api('/inspections/import', {
+    method: 'POST',
+    body: JSON.stringify({ creado_en: new Date(Date.now() - DIA_MS).toISOString(), tag: 'EXTF-COC-021', resultados })
+  }, admin);
+  assert.equal(sinCap.status, 400, JSON.stringify(sinCap.body));
+  assert.equal(sinCap.body.error, 'bad_request');
+  assert.match(String(sinCap.body.msg), /captura_id/i);
+
+  // (b) la migración 007_import_dedup creó el índice UNIQUE en sqlite.
+  const idx = await db.get("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_inspecciones_captura_id'");
+  assert.ok(idx, 'existe el índice UNIQUE idx_inspecciones_captura_id');
+
+  // (c) guarda REAL: un INSERT con captura_id repetido viola UNIQUE (la BD lo impide).
+  const cap = 'cap-uniq-guard';
+  await api('/inspections/import', {
+    method: 'POST',
+    body: JSON.stringify({ captura_id: cap, creado_en: new Date(Date.now() - DIA_MS).toISOString(), tag: 'EXTF-ALM-022', resultados })
+  }, admin);
+  await assert.rejects(
+    () => db.run("INSERT INTO inspecciones (tag, resultados, captura_id) VALUES ('EXTF-ALM-022', '{}', ?)", [cap]),
+    (e) => /unique/i.test(String(e && e.message)),
+    'el índice UNIQUE aborta el insert duplicado'
+  );
+
+  // (d) la reimportación por API sigue siendo idempotente.
+  const dup = await api('/inspections/import', {
+    method: 'POST',
+    body: JSON.stringify({ captura_id: cap, creado_en: new Date(Date.now() - DIA_MS).toISOString(), tag: 'EXTF-ALM-022', resultados })
+  }, admin);
+  assert.equal(dup.status, 200);
+  assert.equal(dup.body.duplicado, true);
+  assert.equal(dup.body.captura_id, cap);
 });
 
 test('solo admin: un inspector recibe 403 en /inspections/import', async () => {

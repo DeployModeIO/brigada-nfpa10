@@ -23,7 +23,19 @@ function buildApp() {
   app.disable('x-powered-by');
   app.set('json spaces', 0);
 
-  app.use(helmet());
+  // L3 (fix funcional): el CSP por defecto de helmet bloquea las teselas de OpenStreetMap
+  // que usa el mapa de /planta servido por este mismo server. Se PARTEN las directivas por
+  // defecto y SOLO se amplían img-src/connect-src con los dominios de OSM; el resto de
+  // directivas se mantienen intactas (no se debilita nada más).
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        'img-src': ["'self'", 'data:', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org'],
+        'connect-src': ["'self'", 'https://*.tile.openstreetmap.org'],
+      },
+    },
+  }));
   app.use(cors({
     origin(origin, cb) {
       // Sin header Origin (curl, apps nativas, n8n) se permite.

@@ -154,8 +154,8 @@ const MIGRATIONS = [
   },
   {
     // Importación fiel desde campo (app Android): conserva fecha de captura, inspector
-    // original y ancla el vencimiento a la captura. SIN índice único en BD (portabilidad de
-    // dialectos): la idempotencia se resuelve a nivel de aplicación por SELECT sobre captura_id.
+    // original y ancla el vencimiento a la captura. El índice UNIQUE sobre captura_id se
+    // añade después en la migración 007_import_dedup (la 006 solo crea la columna).
     version: '006_importacion',
     tables: {
       importaciones: `CREATE TABLE IF NOT EXISTS importaciones (
@@ -176,6 +176,19 @@ const MIGRATIONS = [
         ['origen', "VARCHAR(16) NOT NULL DEFAULT 'local'"]
       ]
     }
+  },
+  {
+    // M1 (revisión de seguridad de rama): índice UNIQUE sobre inspecciones(captura_id) para
+    // que la deduplicación de importación sea ATÓMICA y no solo un SELECT previo (vulnerable
+    // a carreras entre comprobación e inserción). Va en `alter` (try/catch + log) porque
+    // `CREATE UNIQUE INDEX IF NOT EXISTS` no es válido en todos los dialectos (p.ej. MySQL) y
+    // porque una BD con duplicados previos haría fallar el índice: en ese caso se omite sin
+    // romper la migración, y el endpoint además captura la violación de UNIQUE.
+    version: '007_import_dedup',
+    tables: {},
+    alter: [
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_inspecciones_captura_id ON inspecciones (captura_id)'
+    ]
   },
 ];
 
