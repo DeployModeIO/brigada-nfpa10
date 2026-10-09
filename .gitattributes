@@ -1,0 +1,30 @@
+# Normaliza los finales de línea a LF en el repositorio
+* text=auto eol=lf
+
+# Binarios: no normalizar ni intentar fusionar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.gz binary
+*.7z binary
+*.exe binary
+*.node binary
+*.db binary
+*.sqlite binary
+*.xls binary
+*.xlsx binary
+*.docx binary
+*.pptx binary
+
+# Lockfiles: no mostrar diff por defecto
+package-lock.json -diff

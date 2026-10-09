@@ -5,3 +5,5 @@ data/
 client/v4173.txt
 server/bin/
 server/dist-portable/
+# Estado local de los MCP de asistencia (Serena), no del producto
+.serena/
