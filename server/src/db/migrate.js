@@ -152,6 +152,31 @@ const MIGRATIONS = [
       ]
     }
   },
+  {
+    // Importación fiel desde campo (app Android): conserva fecha de captura, inspector
+    // original y ancla el vencimiento a la captura. SIN índice único en BD (portabilidad de
+    // dialectos): la idempotencia se resuelve a nivel de aplicación por SELECT sobre captura_id.
+    version: '006_importacion',
+    tables: {
+      importaciones: `CREATE TABLE IF NOT EXISTS importaciones (
+        id {AUTOINC},
+        archivo_hash VARCHAR(64),
+        dispositivo VARCHAR(128),
+        total INTEGER NOT NULL DEFAULT 0,
+        creados INTEGER NOT NULL DEFAULT 0,
+        duplicados INTEGER NOT NULL DEFAULT 0,
+        errores INTEGER NOT NULL DEFAULT 0,
+        detalle {TEXT},
+        ts VARCHAR(32) NOT NULL DEFAULT ''
+      )`
+    },
+    columnas: {
+      inspecciones: [
+        ['captura_id', 'VARCHAR(64)'],
+        ['origen', "VARCHAR(16) NOT NULL DEFAULT 'local'"]
+      ]
+    }
+  },
 ];
 
 async function migrate() {

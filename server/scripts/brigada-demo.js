@@ -21,7 +21,11 @@ process.env.SERVE_CLIENT = '1';
 process.env.DB_PATH = process.env.DB_PATH || path.join(APP_DIR, 'brigadademo.db');
 process.env.DEMO_SEED = '1';
 process.env.CLIENT_DIST = process.env.CLIENT_DIST || path.join(__dirname, '..', 'dist-portable');
-process.env.ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || `http://localhost:${PORT}`;
+// CORS: el APK Capacitor llega con origen https://localhost (WebView) o capacitor://localhost
+// (esquema capacitor), se añaden por coma para que el dispositivo de campo alcance el portable.
+// Ver client/CAPACITOR.md.
+process.env.ALLOW_ORIGIN =
+  process.env.ALLOW_ORIGIN || `http://localhost:${PORT},https://localhost,capacitor://localhost`;
 
 function abrirNavegador() {
   if (process.env.NO_BROWSER) return;
