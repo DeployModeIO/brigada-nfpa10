@@ -78,3 +78,10 @@ Contrato detallado: `docs/CONTRATO-EXPORT-IMPORT.md`. Runbook: `docs/DEPLOY.md`.
 - **Auditoría**: se registra el origen de cada inspección (directa vs importada), su inspector y
   sus fechas.
 - **Secretos por entorno**, nunca en el repositorio (ver `SECURITY.md`).
+## Ergonomía en tablet de campo (decisión intencional)
+
+En tabletas de ~800×1280 px la aplicación muestra deliberadamente la carcasa móvil
+(navegación inferior); la barra lateral solo aparece en pantallas ≥1024 px. En terreno el
+equipo se sostiene con una mano y el pulgar debe alcanzar la navegación sin estiramientos:
+una barra lateral a 800 px robaría ancho al checklist y obligaría a toques imprecisos. Esto
+NO es un fallo de breakpoint sino diseño de ergonomía de campo; no "corregir".

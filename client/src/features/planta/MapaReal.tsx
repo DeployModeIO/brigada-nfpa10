@@ -46,6 +46,18 @@ function colorMapa(estado: string): string {
   return m ? tokenCss(m[1]) : v
 }
 
+/** Traduce los errores de geolocalización del navegador (códigos 1/2/3) a español. */
+function mensajeGeo(e: unknown): string {
+  if (e instanceof Error) {
+    const code = (e as Error & { code?: unknown }).code
+    if (code === 1) return 'Permiso de ubicación denegado'
+    if (code === 2) return 'Ubicación no disponible'
+    if (code === 3) return 'Tiempo de espera agotado'
+    return e.message
+  }
+  return 'No se pudo obtener la ubicación del dispositivo.'
+}
+
 export default function MapaReal({ puntos, onAbrirFicha, etiqueta }: Props) {
   const divRef = useRef<HTMLDivElement | null>(null)
   const mapaRef = useRef<L.Map | null>(null)
@@ -145,7 +157,7 @@ export default function MapaReal({ puntos, onAbrirFicha, etiqueta }: Props) {
         .addTo(capa)
       map.setView([u.lat, u.lng], 17)
     } catch (e) {
-      setAviso(e instanceof Error ? e.message : 'No se pudo obtener la ubicación del dispositivo.')
+      setAviso(mensajeGeo(e))
     } finally {
       setUbicando(false)
     }

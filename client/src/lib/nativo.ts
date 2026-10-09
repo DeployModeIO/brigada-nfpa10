@@ -75,7 +75,9 @@ function obtenerUbicacionWeb(): Promise<Ubicacion> {
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, precision: pos.coords.accuracy }),
-      (err) => reject(new Error(err.message || 'No se pudo obtener la ubicación')),
+      // Se preserva err.code (1 permiso / 2 no disponible / 3 timeout) para que la UI
+      // pueda traducirlo; ver MapaReal.mensajeGeo().
+      (err) => reject(Object.assign(new Error(err.message || 'No se pudo obtener la ubicación'), { code: err.code })),
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 30_000 },
     )
   })

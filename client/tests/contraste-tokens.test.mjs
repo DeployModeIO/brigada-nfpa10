@@ -61,6 +61,36 @@ test('seed de brand del demo y defaults de admin usan la paleta oscurecida', () 
   assert.ok(marca.includes("primary: '#0369a1'"), 'MarcaSection defaults coherentes')
 })
 
+test('CTA primarios: login submit (16px) ≥4.5 con los tokens', () => {
+  const css = readFileSync(`${raiz}src/styles/tokens.css`, 'utf8')
+  for (const sel of ["[data-theme='light']", "[data-theme='read']"]) {
+    const b = bloque(css, sel)
+    const r = ratio(token(b, '--on-primary'), token(b, '--primary'))
+    assert.ok(r >= 4.5, `${sel} CTA login bg-primary/text-on-primary = ${r} < 4.5`)
+  }
+})
+
+test('CTA DESCARGAR (exportar) y CONFIRMAR (importar) 18px bold: ≥4.5 en light/read, ≥3.0 en dark', () => {
+  const css = readFileSync(`${raiz}src/styles/tokens.css`, 'utf8')
+  for (const sel of ["[data-theme='light']", "[data-theme='read']"]) {
+    const b = bloque(css, sel)
+    const r = ratio(token(b, '--on-primary'), token(b, '--primary'))
+    assert.ok(r >= 4.5, `${sel} CTA bg-primary/text-on-primary = ${r} < 4.5`)
+  }
+  const d = bloque(css, "[data-theme='dark']")
+  const rd = ratio(token(d, '--on-primary'), token(d, '--primary'))
+  assert.ok(rd >= 3.0, `dark CTA bg-primary/text-on-primary = ${rd} < 3.0 (texto grande)`)
+})
+
+test('default brand del servidor (settings.js) sin sky-500 y ≥4.5 con blanco', () => {
+  const src = readFileSync(`${raiz}../server/src/routes/settings.js`, 'utf8')
+  assert.ok(!src.includes('#0ea5e9'), 'settings.js no debe sembrar sky-500 por defecto')
+  const m = src.match(/brand:\s*\{ primary: '(#[0-9a-fA-F]{6})'/)
+  assert.ok(m, 'falta brand.primary en DEFAULTS de settings.js')
+  const r = ratio('#ffffff', m[1])
+  assert.ok(r >= 4.5, `brand.primary default vs blanco = ${r} < 4.5`)
+})
+
 test('series del gráfico (tokens ok/warn/err/text) ≥3.0 sobre surface', () => {
   const css = readFileSync(`${raiz}src/styles/tokens.css`, 'utf8')
   for (const sel of ["[data-theme='light']", "[data-theme='read']"]) {

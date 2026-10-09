@@ -13,7 +13,10 @@ const DEFAULTS = {
   temaDefault: 'light',
   webhookUrl: '',
   webhookApi: '',
-  brand: { primary: '#0ea5e9', ok: '#22c55e', warn: '#eab308', err: '#ef4444', info: '#3b82f6' },
+  // Defaults AA (≥4.5:1 con blanco en los CTA primarios): misma paleta oscurecida que
+  // usa el cliente (tokens.css light/read, demoMock, MarcaSection). El admin puede
+  // sobrescribirlos desde /admin → Marca (settings.brand.*).
+  brand: { primary: '#0369a1', ok: '#047857', warn: '#92400e', err: '#b91c1c', info: '#0369a1' },
   configTipos: [],
   configUbicaciones: []
 };
