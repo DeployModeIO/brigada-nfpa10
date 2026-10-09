@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuración de seguridad de red del APK de TERRENO (Capacitor).
+  La app corre en un WebView con esquema https://localhost y habla con el servidor
+  portátil del PC por http en la LAN → Android exige permitir tráfico en claro (cleartext).
+
+  AJUSTE DE TEST/PRUEBA DE CAMPO: base-config con cleartextTrafficPermitted="true".
+  Para producción endurecer: fijar SOLO el host del servidor con un <domain-config>
+  (descomentar el bloque de abajo y poner la IP/dominio reales) y dejar el base-config
+  con cleartextTrafficPermitted="false". Ver client/CAPACITOR.md.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+
+    <!--
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.10</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+    -->
+</network-security-config>

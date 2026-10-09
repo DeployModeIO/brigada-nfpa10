@@ -1,29 +1,86 @@
 /**
- * Cliente HTTP del contrato NFPA-10. baseURL: VITE_API_URL; si no está definida,
- * MISMO ORIGEN (window.location.origin + /api/v1) — así el despliegue local funciona
- * en cualquier host/puerto de la faena (docker :3200, portable :8080, dev :5199 con
- * proxy /api). En file:// (demo) cae al default histórico; el mock demo intercepta igual.
- * Token en localStorage; 401 → logout global (evento 'nfpa:unauthorized' que escucha AuthContext).
+ * Cliente HTTP del contrato NFPA-10. baseURL resuelta por resolverApiBase():
+ * VITE_API_URL → base guardada en el dispositivo (nativo) → mismo origen (web) →
+ * default local histórico. En el APK Capacitor el origen es https://localhost y NO
+ * vale como base: por eso el modo nativo usa base explícita o el default documentado.
+ * Token en localStorage; 401 → logout global, SALVO en MODO_CAPTURA (sesión permanente
+ * de terreno: no se limpia el token ni se dispara 'nfpa:unauthorized').
  */
 import { installDemoFetch } from './demoMock'
+import { MODO_CAPTURA } from './modo'
+import { esNativo, leerApiBaseGuardada } from './nativo'
 
 export * from './types'
+export { esNativo } from './nativo'
 
 const TOKEN_KEY = 'nfpa_token'
+
+/** Default histórico (dev local / docker :3200). En APK sirve vía `adb reverse`. */
+const API_BASE_FALLBACK = 'http://localhost:3200/api/v1'
 
 function env(): Record<string, string | undefined> {
   return ((import.meta as unknown as { env?: Record<string, string | undefined> }).env) ?? {}
 }
 
-function mismaOrigenApi(): string {
+function origenActual(): string | undefined {
   try {
-    const o = globalThis.window?.location?.origin
-    if (o && /^https?:\/\//.test(o)) return `${o}/api/v1`
-  } catch { /* file://, node, SSR */ }
-  return 'http://localhost:3200/api/v1'
+    return globalThis.window?.location?.origin
+  } catch {
+    return undefined
+  }
 }
 
-export const API_BASE: string = env().VITE_API_URL ?? mismaOrigenApi()
+export interface ResolverApiBaseOpts {
+  /** VITE_API_URL del build (máxima prioridad). */
+  envUrl?: string
+  /** ¿Corremos en plataforma nativa (APK Capacitor)? */
+  isNative: boolean
+  /** Base guardada en el dispositivo (Preferences 'apiBase'), si la hay. */
+  stored?: string | null
+  /** window.location.origin actual (solo se usa en web). */
+  origin?: string
+}
+
+/**
+ * Helper PURO y testeable: resuelve la base de la API.
+ * Prioridad: envUrl → base guardada → (web: origen + /api/v1) → default local.
+ * En nativo, sin env ni base guardada, devuelve el default local (documentado): NO se
+ * usa el origen del WebView (https://localhost) porque no es un servidor real. El default
+ * local sirve con `adb reverse tcp:3200 tcp:3200`; en LAN real se fija VITE_API_URL o la
+ * base guardada (Preferences 'apiBase').
+ */
+export function resolverApiBase(opts: ResolverApiBaseOpts): string {
+  const envUrl = (opts.envUrl ?? '').trim()
+  if (envUrl) return envUrl
+  const stored = (opts.stored ?? '').trim()
+  if (stored) return stored
+  if (!opts.isNative) {
+    const o = opts.origin
+    if (o && /^https?:\/\//.test(o)) return `${o}/api/v1`
+  }
+  return API_BASE_FALLBACK
+}
+
+// Inicialización SÍNCRONA con la misma semántica previa (web idéntica). La detección nativa
+// (async) actualiza API_BASE después mediante inicializarApiBase().
+export let API_BASE: string = resolverApiBase({
+  envUrl: env().VITE_API_URL,
+  isNative: false,
+  stored: null,
+  origin: origenActual(),
+})
+
+/**
+ * Detección nativa diferida: importa @capacitor/core de forma guardada, lee la base
+ * guardada (Preferences 'apiBase') y recalcula API_BASE. En web el resultado es el mismo
+ * de siempre. Se invoca una vez al arrancar (main.tsx).
+ */
+export async function inicializarApiBase(): Promise<string> {
+  const isNative = await esNativo()
+  const stored = isNative ? await leerApiBaseGuardada() : null
+  API_BASE = resolverApiBase({ envUrl: env().VITE_API_URL, isNative, stored, origin: origenActual() })
+  return API_BASE
+}
 
 /** MODO DEMO (VITE_DEMO==='1' en el build): todo fetch hacia API_BASE lo resuelve demoMock. */
 export const DEMO_MODE: boolean = env().VITE_DEMO === '1'
@@ -88,6 +145,12 @@ async function request<T>(method: string, path: string, opts: RequestOpts = {}):
       const body = (await res.json().catch(() => null)) as { msg?: string; message?: string } | null
       const def = p0 === '/auth/change-password' ? 'La contraseña actual no coincide' : 'Credenciales incorrectas'
       throw new ApiError(401, body?.msg || body?.message || def, body ?? undefined)
+    }
+    // MODO_CAPTURA: sesión PERMANENTE de terreno. No se invalida el login aunque el server
+    // no responda con 200 (token caducado, base aún no configurada…): el usuario sigue dentro
+    // y las capturas van a la cola local. Fuera de captura, comportamiento online intacto.
+    if (MODO_CAPTURA) {
+      throw new ApiError(401, 'Sesión no verificada (modo captura)')
     }
     clearToken()
     window.dispatchEvent(new Event('nfpa:unauthorized'))

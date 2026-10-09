@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Brigada NFPA-10</string>
+    <string name="title_activity_main">Brigada NFPA-10</string>
+    <string name="package_name">io.deploymodeio.brigada</string>
+    <string name="custom_url_scheme">io.deploymodeio.brigada</string>
+</resources>

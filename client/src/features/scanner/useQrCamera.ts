@@ -1,9 +1,14 @@
 /**
  * Cámara QR: getUserMedia(environment) + decodificación jsQR en un rAF con throttle.
  * Se apaga al desmontar o al desactivar la pestaña; siempre libera los tracks.
+ *
+ * En el APK Capacitor se PREFIERE el escáner nativo (@capacitor/barcode-scanner); si el
+ * plugin no está disponible, el usuario cancela o no detecta código, se cae al camino
+ * web existente (getUserMedia + jsQR) sin cambios. En web es un no-op (esNativo=false).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import jsQR from 'jsqr'
+import { esNativo, escanearNativo } from '../../lib/nativo'
 
 export type EstadoCam = 'inactivo' | 'iniciando' | 'activo' | 'denegado' | 'sin_camara' | 'error'
 
@@ -62,13 +67,6 @@ export function useQrCamera(activo: boolean, onCodigo: (texto: string) => void):
     setLinterna(false)
     setPuedeLinterna(false)
 
-    const md: MediaDevices | undefined = navigator.mediaDevices
-    if (!md || typeof md.getUserMedia !== 'function') {
-      setEstado('sin_camara')
-      setErrorTexto('Este navegador no expone getUserMedia.')
-      return
-    }
-
     const limpiar = () => {
       vivo = false
       cancelAnimationFrame(raf)
@@ -101,47 +99,72 @@ export function useQrCamera(activo: boolean, onCodigo: (texto: string) => void):
       }
     }
 
-    md.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    })
-      .then((s) => {
-        if (!vivo) {
-          s.getTracks().forEach((t) => t.stop())
-          return
-        }
-        stream = s
-        const v = videoRef.current
-        if (!v) {
-          limpiar()
-          setEstado('error')
-          setErrorTexto('El visor de cámara no está montado.')
-          return
-        }
-        v.srcObject = s
-        trackRef.current = s.getVideoTracks()[0] ?? null
-        const caps = trackRef.current?.getCapabilities?.() as CapTorch | undefined
-        setPuedeLinterna(Boolean(caps && caps.torch))
-        const arranco = () => {
+    // Camino WEB original (getUserMedia + jsQR). Extraído a función para que el intento
+    // nativo pueda caer aquí sin duplicar lógica ni alterar su comportamiento.
+    const arrancarWeb = () => {
+      const md: MediaDevices | undefined = navigator.mediaDevices
+      if (!md || typeof md.getUserMedia !== 'function') {
+        setEstado('sin_camara')
+        setErrorTexto('Este navegador no expone getUserMedia.')
+        return
+      }
+      md.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      })
+        .then((s) => {
+          if (!vivo) {
+            s.getTracks().forEach((t) => t.stop())
+            return
+          }
+          stream = s
+          const v = videoRef.current
+          if (!v) {
+            limpiar()
+            setEstado('error')
+            setErrorTexto('El visor de cámara no está montado.')
+            return
+          }
+          v.srcObject = s
+          trackRef.current = s.getVideoTracks()[0] ?? null
+          const caps = trackRef.current?.getCapabilities?.() as CapTorch | undefined
+          setPuedeLinterna(Boolean(caps && caps.torch))
+          const arranco = () => {
+            if (!vivo) return
+            void v.play().catch(() => undefined)
+            setEstado('activo')
+            raf = requestAnimationFrame(escanear)
+          }
+          if (v.readyState >= 2) arranco()
+          else v.addEventListener('loadeddata', arranco, { once: true })
+        })
+        .catch((e: unknown) => {
           if (!vivo) return
-          void v.play().catch(() => undefined)
-          setEstado('activo')
-          raf = requestAnimationFrame(escanear)
-        }
-        if (v.readyState >= 2) arranco()
-        else v.addEventListener('loadeddata', arranco, { once: true })
-      })
-      .catch((e: unknown) => {
+          const name = e instanceof DOMException ? e.name : ''
+          if (name === 'NotAllowedError' || name === 'SecurityError') setEstado('denegado')
+          else if (name === 'NotFoundError' || name === 'NotReadableError' || name === 'OverconstrainedError')
+            setEstado('sin_camara')
+          else {
+            setEstado('error')
+            setErrorTexto(e instanceof Error ? e.message : String(e))
+          }
+        })
+    }
+
+    // Preferencia NATIVA: escáner del sistema si corremos en APK; si no hay plugin,
+    // se cancela o no detecta nada → cae a la cámara web/jsQR de siempre.
+    void (async () => {
+      if (await esNativo()) {
+        const texto = await escanearNativo()
         if (!vivo) return
-        const name = e instanceof DOMException ? e.name : ''
-        if (name === 'NotAllowedError' || name === 'SecurityError') setEstado('denegado')
-        else if (name === 'NotFoundError' || name === 'NotReadableError' || name === 'OverconstrainedError')
-          setEstado('sin_camara')
-        else {
-          setEstado('error')
-          setErrorTexto(e instanceof Error ? e.message : String(e))
+        if (texto) {
+          onCodigoRef.current(texto)
+          setEstado('activo')
+          return
         }
-      })
+      }
+      if (vivo) arrancarWeb()
+    })()
 
     return limpiar
   }, [activo, reinicio])

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, clearToken, getToken, setToken, type Usuario } from '../lib/api'
 import { setSetting } from '../lib/offline'
+import { MODO_CAPTURA } from '../lib/modo'
 
 interface JwtUserPayload { id: number; username: string; nombre: string; rol: string; must_change_password?: number | boolean }
 
@@ -43,6 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 401 desde el cliente HTTP → sesión fuera
   useEffect(() => {
     const onUnauthorized = () => {
+      // MODO_CAPTURA: sesión permanente de terreno — se ignora la invalidación global
+      // (la base puede cambiar o el server no estar; el usuario no debe re-loguear).
+      if (MODO_CAPTURA) return
       setTokenState(null)
       setUsuario(null)
       setPasswordRequerida(false)
