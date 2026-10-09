@@ -81,8 +81,10 @@ export default function ImportarTerrenoPage() {
   }
 
   async function onElegirArchivo(ev: ChangeEvent<HTMLInputElement>) {
-    reiniciar()
+    // B1: capturar el File ANTES de reiniciar() — reiniciar() vacía input.value y con ello el
+    // FileList vivo del evento; leerlo después daba siempre undefined (importación no-op silenciosa).
     const f = ev.target.files?.[0]
+    reiniciar()
     if (!f) return
     setArchivo(f.name)
     // L1: rechazar ANTES de parsear si el archivo es absurdamente grande.
