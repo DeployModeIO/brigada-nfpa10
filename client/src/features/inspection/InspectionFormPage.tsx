@@ -13,9 +13,14 @@ import {
   cachePut,
   enqueueInspection,
   getSetting,
+  listarCola,
+  marcarCaptura,
   pendingCount,
   setSetting,
+  type ColaItem,
 } from '../../lib/offline'
+import { MODO_CAPTURA } from '../../lib/modo'
+import { esNativo, obtenerUbicacion } from '../../lib/nativo'
 
 import {
   AlertIcon,
@@ -82,6 +87,7 @@ export default function InspectionFormPage() {
 
   const [historial, setHistorial] = useState<InspRow[] | null>(null)
   const [histRefresh, setHistRefresh] = useState(0)
+  const [capturasLocales, setCapturasLocales] = useState<ColaItem[] | null>(null)
 
   useEffect(() => {
     const al = () => setOnline(true)
@@ -162,6 +168,17 @@ export default function InspectionFormPage() {
     }
   }, [tag, histRefresh, online])
 
+  // MODO_CAPTURA: historial de capturas locales de este tag (cola IndexedDB, sin subir nada).
+  const refrescarCapturasLocales = useCallback(async () => {
+    if (!MODO_CAPTURA || !tag) return
+    const all = await listarCola().catch(() => [] as ColaItem[])
+    setCapturasLocales(all.filter((c) => c.payload.tag === tag))
+  }, [tag])
+
+  useEffect(() => {
+    void refrescarCapturasLocales()
+  }, [refrescarCapturasLocales])
+
   const sinResponder = items.filter((i) => !respondido[i.clave])
   const fallas = items.filter((i) => respondido[i.clave] && resp[i.clave] === false)
   const hayFallas = fallas.length > 0
@@ -189,25 +206,26 @@ export default function InspectionFormPage() {
     }
   }
 
-  const capturarGps = () => {
-    if (!('geolocation' in navigator)) {
+  const capturarGps = async () => {
+    // En web sin geolocalización se conserva el mensaje original; en nativo usamos el plugin.
+    const nativo = await esNativo()
+    if (!nativo && !('geolocation' in navigator)) {
       setGpsEstado('err')
       setGpsMsg('Este navegador no ofrece geolocalización.')
       return
     }
     setGpsEstado('busy')
     setGpsMsg(null)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, precision: pos.coords.accuracy })
-        setGpsEstado('ok')
-      },
-      (err) => {
-        setGpsEstado('err')
-        setGpsMsg(`GPS no disponible: ${err.message}`)
-      },
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 30_000 },
-    )
+    try {
+      // Nativos (APK): @capacitor/geolocation (con permiso); web: navigator.geolocation.
+      // Mismos estados/gps valores → UI sin cambios.
+      const u = await obtenerUbicacion()
+      setGps({ lat: u.lat, lng: u.lng, precision: u.precision })
+      setGpsEstado('ok')
+    } catch (err) {
+      setGpsEstado('err')
+      setGpsMsg(`GPS no disponible: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   const construirPayload = (): InspeccionPayload => {
@@ -226,11 +244,19 @@ export default function InspectionFormPage() {
     const id = await enqueueInspection(payload)
     setGuardadoLocal(true)
     setPendientes(await pendingCount().catch(() => null))
-    setToast({
-      tipo: 'info',
-      titulo: 'Guardado local, se sincronizará',
-      mensaje: `Inspección de ${tag} en cola offline${id ? ` (#${id})` : ''}. Al recuperar conexión se envía sola.`,
-    })
+    setToast(
+      MODO_CAPTURA
+        ? {
+            tipo: 'ok',
+            titulo: 'Captura guardada en el dispositivo',
+            mensaje: `Inspección de ${tag} capturada localmente${id ? ` (#${id})` : ''}. Pendiente de exportar.`,
+          }
+        : {
+            tipo: 'info',
+            titulo: 'Guardado local, se sincronizará',
+            mensaje: `Inspección de ${tag} en cola offline${id ? ` (#${id})` : ''}. Al recuperar conexión se envía sola.`,
+          },
+    )
   }
 
   const onGuardar = async (ev?: FormEvent) => {
@@ -243,6 +269,26 @@ export default function InspectionFormPage() {
       return
     }
     setEnviando(true)
+
+    // MODO_CAPTURA: SIEMPRE a la cola local, JAMÁS POST. La captura queda marcada y lista para exportar.
+    if (MODO_CAPTURA) {
+      const captura = marcarCaptura(construirPayload())
+      try {
+        await guardarEnCola(captura)
+        setResp({})
+        setRespondido({})
+        setObs('')
+        setFoto(null)
+        setGps(null)
+        setGpsEstado('idle')
+        setIntentosSubmit(0)
+        await refrescarCapturasLocales()
+      } finally {
+        setEnviando(false)
+      }
+      return
+    }
+
     const payload = construirPayload()
     const nFallas = fallas.length
     try {
@@ -303,7 +349,8 @@ export default function InspectionFormPage() {
           className="flex min-h-14 items-center gap-2 rounded-xl border-2 border-info bg-info/10 px-4 font-semibold text-info"
         >
           <ClipboardIcon size={22} />
-          Guardado local, se sincronizará al recuperar conexión{pendientes != null ? ` (en cola: ${pendientes})` : ''}.
+          {MODO_CAPTURA ? 'Captura guardada en el dispositivo — pendiente de exportar' : 'Guardado local, se sincronizará al recuperar conexión'}
+          {pendientes != null ? ` (en cola: ${pendientes})` : ''}.
         </p>
       )}
       {desdeCache && (
@@ -472,7 +519,7 @@ export default function InspectionFormPage() {
                   data-testid="gps-btn"
                   disabled={gpsEstado === 'busy'}
                   aria-busy={gpsEstado === 'busy'}
-                  onClick={capturarGps}
+                  onClick={() => void capturarGps()}
                   className={`flex min-h-14 items-center gap-2 rounded-lg border-2 px-4 font-semibold ${
                     gps ? 'border-ok bg-ok/10 text-ok' : 'border-primary bg-primary/10 text-primary'
                   } disabled:opacity-60`}
@@ -514,6 +561,58 @@ export default function InspectionFormPage() {
               )}
             </button>
           </form>
+
+          {MODO_CAPTURA && (
+            <section
+              aria-labelledby="titulo-capturas-locales"
+              data-testid="capturas-locales"
+              className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4"
+            >
+              <h2 id="titulo-capturas-locales" className="text-lg font-semibold">
+                Capturas locales (pendientes de exportar)
+              </h2>
+              {capturasLocales == null ? (
+                <p role="status" className="text-sm text-text2">Cargando capturas locales…</p>
+              ) : capturasLocales.length === 0 ? (
+                <p className="text-sm text-text2">Sin capturas locales de {tag} todavía.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {capturasLocales.map((c) => {
+                    const r = resumenCaptura(c.payload)
+                    return (
+                      <li
+                        key={c.id}
+                        className="flex min-h-14 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-bg px-3 py-2"
+                      >
+                        <span className="flex items-center gap-2">
+                          {r.fallas > 0 ? (
+                            <CloseIcon size={18} className="text-err" />
+                          ) : (
+                            <CheckIcon size={18} className="text-ok" />
+                          )}
+                          <span className="font-medium">
+                            {fechaHora(c.payload.creado_en ?? new Date(c.creado_en).toISOString())}
+                          </span>
+                          <span className="font-mono text-xs text-text2">{c.payload.captura_id?.slice(0, 8)}</span>
+                          {c.payload.foto_evidencia_base64 && (
+                            <span className="rounded bg-info/15 px-2 py-0.5 text-xs font-semibold text-info">foto</span>
+                          )}
+                        </span>
+                        <span
+                          className={`rounded-full border-2 px-3 py-1 text-xs font-bold uppercase ${
+                            r.fallas > 0 ? 'border-err text-err bg-err/10' : 'border-ok text-ok bg-ok/10'
+                          }`}
+                        >
+                          {r.fallas > 0 ? `Falla (${r.fallas})` : 'Pasa'}
+                          {r.criticas > 0 ? ' · crítica' : ''}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
+          )}
 
           <section aria-labelledby="titulo-historial" className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
             <h2 id="titulo-historial" className="text-lg font-semibold">
@@ -566,4 +665,12 @@ function CameraBtn() {
 
 function MapPinIcon() {
   return <LocationIcon size={20} />
+}
+
+/** Resumen de una captura local: nº de fallas y de fallas críticas (misma lógica CRITICAS). */
+function resumenCaptura(payload: ColaItem['payload']): { fallas: number; criticas: number } {
+  const entradas = Object.entries(payload.resultados || {})
+  const fallas = entradas.filter(([, v]) => v === false).length
+  const criticas = entradas.filter(([k, v]) => v === false && CRITICAS.has(k)).length
+  return { fallas, criticas }
 }

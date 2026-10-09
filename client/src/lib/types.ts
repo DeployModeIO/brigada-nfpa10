@@ -59,6 +59,9 @@ export interface InspectionPayload {
   foto_evidencia_base64?: string | null
   gps?: GpsFix | null
   dispositivo?: string | null
+  /** MODO_CAPTURA: identidad local de la captura (UUID) y su marca temporal ISO. */
+  captura_id?: string
+  creado_en?: string
 }
 
 /** Resumen 201 de POST /inspections. */

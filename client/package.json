@@ -9,13 +9,21 @@
     "build:demo": "tsc --noEmit && vite build --mode demo --config vite.demo.config.ts && mv -f dist-demo/index.html dist-demo/Brigada-Demo.html",
     "preview": "vite preview --port 5199",
     "icons": "node scripts/make-icons.mjs",
-    "test:build": "esbuild src/router.tsx --bundle --format=esm --platform=node --jsx=automatic --loader:.css=empty --outfile=tests/.build/router.mjs && esbuild src/context/ThemeContext.tsx --bundle --format=esm --platform=node --jsx=automatic --outfile=tests/.build/theme.mjs && esbuild src/features/planta/pins.ts --bundle --format=esm --platform=node --outfile=tests/.build/pins.mjs && esbuild src/features/export/bomberosPdf.ts --bundle --format=esm --platform=node --outfile=tests/.build/bomberos.mjs && esbuild src/lib/api.ts --bundle --format=esm --platform=node --external:xlsx --external:pdfmake --outfile=tests/.build/api.mjs && esbuild src/features/auth/CambioPasswordPage.tsx --bundle --format=esm --platform=node --jsx=automatic --external:xlsx --external:pdfmake --outfile=tests/.build/cambio.mjs && esbuild src/lib/demoMock.ts --bundle --format=esm --platform=node --external:xlsx --external:pdfmake --outfile=tests/.build/demomock.mjs",
+    "cap:sync": "npm run build && npx cap sync android",
+    "apk:debug": "npm run cap:sync && npx cap open android",
+    "test:build": "esbuild src/router.tsx --bundle --format=esm --platform=node --jsx=automatic --loader:.css=empty --external:leaflet --external:./MapaReal --outfile=tests/.build/router.mjs && esbuild src/context/ThemeContext.tsx --bundle --format=esm --platform=node --jsx=automatic --outfile=tests/.build/theme.mjs && esbuild src/features/planta/pins.ts --bundle --format=esm --platform=node --outfile=tests/.build/pins.mjs && esbuild src/features/export/bomberosPdf.ts --bundle --format=esm --platform=node --outfile=tests/.build/bomberos.mjs && esbuild src/lib/api.ts --bundle --format=esm --platform=node --external:xlsx --external:pdfmake --external:@capacitor/core --external:@capacitor/preferences --external:@capacitor/geolocation --external:@capacitor/barcode-scanner --outfile=tests/.build/api.mjs && esbuild src/features/auth/CambioPasswordPage.tsx --bundle --format=esm --platform=node --jsx=automatic --external:xlsx --external:pdfmake --outfile=tests/.build/cambio.mjs && esbuild src/lib/demoMock.ts --bundle --format=esm --platform=node --external:xlsx --external:pdfmake --outfile=tests/.build/demomock.mjs && esbuild src/features/terreno/exportarLote.ts --bundle --format=esm --platform=node --outfile=tests/.build/exportarlote.mjs && esbuild src/features/admin/importarTerreno.ts --bundle --format=esm --platform=node --outfile=tests/.build/importarterreno.mjs && esbuild src/features/planta/mapaGeo.ts --bundle --format=esm --platform=node --outfile=tests/.build/mapaGeo.mjs",
     "test": "npm run test:build && node --test 'tests/**/*.test.mjs'"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/barcode-scanner": "^3.1.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/geolocation": "^8.2.3",
+    "@capacitor/preferences": "^8.0.1",
     "@tanstack/react-virtual": "^3.11.2",
     "idb": "^8.0.2",
     "jsqr": "^1.4.0",
+    "leaflet": "^1.9.4",
     "pdfmake": "^0.2.15",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
@@ -25,7 +33,9 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@tailwindcss/vite": "^4.0.9",
+    "@types/leaflet": "^1.9.22",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
