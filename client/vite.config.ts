@@ -28,15 +28,21 @@ function serviceWorker(): Plugin {
   }
 }
 
+// REGLA CRÍTICA (pantalla blanca en producción, incidente 09/10/2026): un paquete CJS y
+// TODO su árbol de dependencias runtime deben caer en el MISMO chunk. Partir el grafo
+// require() de un módulo CommonJS entre chunks rompe su inicialización inter-chunk
+// («Cannot set properties of undefined (setting 'exports')» desde dijkstrajs) y React
+// nunca monta. Por eso pdfmake y xlsx (CJS con árboles anchos: @foliojs-fork/pdfkit,
+// iconv-lite, xmldoc, cfb, codepage, ssf…) NO se parten: van al vendor común. Las reglas
+// dep-* solo agrupan paquetes autocontenidos (sin dependencias runtime fuera del grupo).
+// Correcto > granular: ante la duda, colapsar la división.
 function manualChunks(id: string): string | undefined {
   if (!id.includes('node_modules')) return
-  if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) return 'vendor'
-  if (id.includes('jsqr')) return 'dep-jsqr'
-  if (id.includes('pdfmake')) return 'dep-pdfmake'
-  if (id.includes('xlsx')) return 'dep-xlsx'
-  if (id.includes('qrcode') || id.includes('@types/qrcode')) return 'dep-qrcode'
-  if (id.includes('@tanstack')) return 'dep-virtual'
-  if (id.includes('idb')) return 'dep-idb'
+  // Árbol CJS completo de qrcode (qrcode → dijkstrajs, encode-utf8, pngjs) en UN chunk.
+  if (/[\\/]node_modules[\\/](qrcode|dijkstrajs|encode-utf8|pngjs)[\\/]/.test(id)) return 'dep-qrcode'
+  if (/[\\/]node_modules[\\/]jsqr[\\/]/.test(id)) return 'dep-jsqr' // sin deps runtime
+  if (/[\\/]node_modules[\\/]@tanstack[\\/]/.test(id)) return 'dep-virtual' // react-virtual + virtual-core
+  if (/[\\/]node_modules[\\/]idb[\\/]/.test(id)) return 'dep-idb' // sin deps runtime
   return 'vendor'
 }
 
