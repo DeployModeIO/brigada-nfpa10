@@ -160,4 +160,27 @@ cd server && SMOKE_PORT=3299 npm run test:smoke      # usar un puerto libre
 - El APK fija `android:allowBackup="false"` para impedir que el JWT (localStorage/IndexedDB
   del WebView) se extraiga por `adb backup`/auto-backup.
 
+### HTTPS en producción
+
+El servidor puede servir **HTTPS nativo en el mismo puerto** definiendo `TLS_CERT` y
+`TLS_KEY` (rutas a los PEM, relativas a `server/`):
+
+```bash
+cd server
+./scripts/gen-cert.sh 192.168.1.100   # autofirmado 10 años; SAN localhost + la IP LAN del PC
+# en server/.env (o el entorno):
+#   TLS_CERT=./certs/cert.pem
+#   TLS_KEY=./certs/key.pem
+```
+
+Al reiniciar, el log indica `escuchando en https://0.0.0.0:<puerto> (HTTPS)`; sin esas
+variables el arranque HTTP queda intacto.
+
+- `server/certs/` está gitignored: el par se genera por máquina y **nunca se versiona**.
+- Certificado autofirmado = **solo LAN interna/empresa** de confianza; distribuya
+  `cert.pem` a los dispositivos de confianza. En internet público use un certificado de
+  una CA real (Let's Encrypt o la CA corporativa).
+- Al activar HTTPS, actualice `ALLOW_ORIGIN` a `https://<IP>:<puerto>` y recompile el APK
+  con `VITE_API_URL=https://<IP>:<puerto>/api/v1` (sin cleartext ni mixed content).
+
 Referencia: `client/CAPACITOR.md` §7 y `docs/CONTRATO-EXPORT-IMPORT.md`.

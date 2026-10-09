@@ -10,10 +10,10 @@ import { useAuth } from '../../context/AuthContext'
 import { api, ApiError } from '../../lib/api'
 import { AlertIcon, CheckIcon, ClipboardIcon, DownloadIcon } from '../../components/icons'
 import { Aviso } from './UI'
-import { rolDesdeToken } from './sesion'
 import {
   construirPayloadImport,
   hashArchivo,
+  puedeImportarSegunRol,
   resumirImportacion,
   validarLoteExport,
   type LoteExport,
@@ -52,13 +52,11 @@ function mensajeDe(e: unknown): string {
 }
 
 export default function ImportarTerrenoPage() {
-  const { usuario, token } = useAuth()
-  const rol = usuario?.rol ?? rolDesdeToken(token) ?? undefined
-  const esAdmin = rol === 'admin'
-  const rolConocido = rol !== null && rol !== undefined
-  // Solo se bloquea con un rol conocido que NO sea admin; si no se pudo determinar, el
-  // servidor sigue siendo la última palabra (responde 403).
-  const puedeImportar = esAdmin || !rolConocido
+  const { usuario } = useAuth()
+  // L5 (defensa en profundidad): gate ESTRICTO por el rol refrescado desde el servidor
+  // (AuthContext refresca usuario con GET /auth/me al montar). Offline, el rol decodificado
+  // del token es lo mejor disponible — aceptable: el servidor sigue forzando 403.
+  const esAdmin = puedeImportarSegunRol(usuario?.rol)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [archivo, setArchivo] = useState<string | null>(null)
@@ -182,19 +180,19 @@ export default function ImportarTerrenoPage() {
         secuencial; las ya importadas se registran como duplicadas y no se repiten.
       </p>
 
-      {rolConocido && !esAdmin && (
+      {!esAdmin && (
         <div className="rounded-xl border-2 border-err bg-err/10 p-4 text-sm font-semibold text-err" role="alert">
           <p className="flex items-center gap-2">
-            <AlertIcon size={18} /> Esta función es exclusiva del rol admin.
+            <AlertIcon size={18} /> Solo administrador: la importación de terreno requiere el rol admin.
           </p>
-          <p className="mt-1 font-normal">Rol actual: <span className="font-mono">{rol ?? 'desconocido'}</span>. El servidor responderá 403.</p>
+          <p className="mt-1 font-normal">Rol actual: <span className="font-mono">{usuario?.rol ?? 'desconocido'}</span>. Inicie sesión con una cuenta admin; el servidor rechaza la operación (403).</p>
         </div>
       )}
 
       {noAutorizado && <Aviso tipo="err">{noAutorizado}</Aviso>}
       {error && <Aviso tipo="err">{error}</Aviso>}
 
-      {puedeImportar && (
+      {esAdmin && (
         <div className="rounded-xl border border-border bg-surface p-4">
           <label htmlFor="import-file" className="block text-sm font-medium">
             Archivo del teléfono (.json)

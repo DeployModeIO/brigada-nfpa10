@@ -18,6 +18,7 @@ Object.assign(process.env, {
 
 const db = require('../src/db');
 const { runSeed } = require('../seeds/seed');
+const { hashAuditoriaImport } = require('../src/routes/inspecciones');
 
 const DIA_MS = 86400000;
 let server = null;
@@ -215,17 +216,36 @@ test('validación: creado_en futura/inválida y tag faltante ⇒ 400 {error,msg}
   assert.equal(sinTag.body.error, 'bad_request');
 });
 
-test('importaciones: acumula contadores agregados por meta.archivo_hash', async () => {
+test('importaciones: contadores acumulados por hash SERVIDOR; meta.archivo_hash no agrupa (L2)', async () => {
   const { admin } = await tokens();
   const resultados = await checklist();
-  const hash = 'hash-demo-001';
-  const mk = (captura_id, tag) => JSON.stringify({ captura_id, creado_en: new Date(Date.now() - DIA_MS).toISOString(), tag, resultados, meta: { archivo_hash: hash } });
-  await api('/inspections/import', { method: 'POST', body: mk('cap-agg-1', 'EXTF-POR-027') }, admin);
-  await api('/inspections/import', { method: 'POST', body: mk('cap-agg-2', 'EXTF-TAL-028') }, admin);
-  await api('/inspections/import', { method: 'POST', body: mk('cap-agg-1', 'EXTF-POR-027') }, admin); // duplicado
-  const rows = await db.all('SELECT total, creados, duplicados FROM importaciones WHERE archivo_hash = ?', [hash]);
-  assert.equal(rows.length, 1, 'una sola fila agregada por hash');
-  assert.equal(Number(rows[0].total), 3);
-  assert.equal(Number(rows[0].creados), 2);
-  assert.equal(Number(rows[0].duplicados), 1);
+  const creado = new Date(Date.now() - DIA_MS).toISOString(); // fijo: forma parte del hash
+  const hashCliente = 'hash-falso-compartido'; // el cliente manda el MISMO hash para todo
+  const mk = (captura_id, tag) => JSON.stringify({ captura_id, creado_en: creado, tag, resultados, meta: { archivo_hash: hashCliente } });
+
+  // (a) Reintentos del MISMO payload ⇒ UNA fila con contadores acumulados (merge por hash
+  //     calculado en el servidor a partir de {tag, resultados, creado_en, captura_id}).
+  await api('/inspections/import', { method: 'POST', body: mk('cap-l2-a', 'EXTF-POR-027') }, admin);
+  await api('/inspections/import', { method: 'POST', body: mk('cap-l2-a', 'EXTF-POR-027') }, admin); // duplicado
+  const hashA = hashAuditoriaImport({ captura_id: 'cap-l2-a', creado_en: creado, tag: 'EXTF-POR-027', resultados });
+  const filasA = await db.all('SELECT total, creados, duplicados FROM importaciones WHERE archivo_hash = ?', [hashA]);
+  assert.equal(filasA.length, 1, 'el merge usa el hash calculado en el servidor');
+  assert.equal(Number(filasA[0].total), 2);
+  assert.equal(Number(filasA[0].creados), 1);
+  assert.equal(Number(filasA[0].duplicados), 1);
+
+  // (b) El MISMO hash de cliente con payloads DISTINTOS ⇒ filas de auditoría separadas.
+  await api('/inspections/import', { method: 'POST', body: mk('cap-l2-b', 'EXTF-TAL-028') }, admin);
+  const hashB = hashAuditoriaImport({ captura_id: 'cap-l2-b', creado_en: creado, tag: 'EXTF-TAL-028', resultados });
+  assert.notEqual(hashA, hashB, 'payloads distintos ⇒ hashes de servidor distintos');
+  const filaB = await db.get('SELECT total, creados FROM importaciones WHERE archivo_hash = ?', [hashB]);
+  assert.ok(filaB, 'payload distinto ⇒ fila propia aunque el cliente repita su hash');
+  assert.equal(Number(filaB.total), 1);
+  assert.equal(Number(filaB.creados), 1);
+
+  // (c) Ninguna fila queda keyed por el valor elegido por el cliente: pasa a etiqueta.
+  const porCliente = await db.all('SELECT id FROM importaciones WHERE archivo_hash = ?', [hashCliente]);
+  assert.equal(porCliente.length, 0, 'el hash del cliente ya no es clave de importaciones');
+  const etiqueta = await db.get('SELECT detalle FROM importaciones WHERE archivo_hash = ? AND detalle LIKE ?', [hashA, `%archivo_hash_cliente=${hashCliente}%`]);
+  assert.ok(etiqueta, 'el hash del cliente queda como etiqueta informativa en detalle');
 });

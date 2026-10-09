@@ -50,6 +50,16 @@ function esObjeto(v: unknown): v is Record<string, unknown> {
 }
 
 /**
+ * L5 (defensa en profundidad): el formulario de importación SOLO se muestra con el rol
+ * admin CONFIRMADO — idealmente el refrescado por AuthContext desde GET /auth/me; offline,
+ * el decodificado del token es lo mejor disponible (el servidor sigue forzando 403).
+ * Un rol desconocido ya NO habilita el formulario.
+ */
+export function puedeImportarSegunRol(rol?: string): boolean {
+  return rol === 'admin'
+}
+
+/**
  * Valida un objeto ya parseado contra el contrato de exportación. Nunca lanza:
  * devuelve ok:false con un mensaje en español listo para mostrar al usuario.
  * Comprueba schema exacto, items como array no vacío, y (por ítem) tag string no vacío

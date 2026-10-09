@@ -21,6 +21,7 @@ Object.assign(process.env, {
 
 const db = require('../src/db');
 const { runSeed } = require('../seeds/seed');
+const { hashAuditoriaImport } = require('../src/routes/inspecciones');
 
 const DIA_MS = 86400000;
 let server = null;
@@ -216,10 +217,20 @@ test('ciclo completo: export de terreno → import fiel en el PC → reimport id
   assert.equal(extOk2.ultima_inspeccion, creado, 'la reimportación no altera el extintor');
   assert.equal(Number(extOk2.rechazado), 0);
 
-  // Contadores agregados del lote (trazabilidad del archivo importado).
-  const agg = await db.get('SELECT total, creados, duplicados FROM importaciones WHERE archivo_hash = ?', [hash]);
-  assert.ok(agg, 'se registró la importación por hash');
-  assert.equal(Number(agg.total), 4, '2 ítems × 2 pasadas');
-  assert.equal(Number(agg.creados), 2);
-  assert.equal(Number(agg.duplicados), 2);
+  // Contadores de auditoría (L2): el merge usa el hash calculado por el SERVIDOR a partir
+  // del contenido de cada ítem ⇒ una fila por ítem con sus 2 pasadas. El meta.archivo_hash
+  // del cliente ya no agrupa: queda solo como etiqueta informativa en detalle.
+  const aggOk = await db.get('SELECT total, creados, duplicados FROM importaciones WHERE archivo_hash = ?', [hashAuditoriaImport(lote.items[0])]);
+  const aggCrit = await db.get('SELECT total, creados, duplicados FROM importaciones WHERE archivo_hash = ?', [hashAuditoriaImport(lote.items[1])]);
+  assert.ok(aggOk && aggCrit, 'una fila de auditoría por ítem (hash del servidor)');
+  for (const agg of [aggOk, aggCrit]) {
+    assert.equal(Number(agg.total), 2, '2 pasadas del mismo ítem');
+    assert.equal(Number(agg.creados), 1);
+    assert.equal(Number(agg.duplicados), 1);
+  }
+  assert.equal(
+    (await db.all('SELECT id FROM importaciones WHERE archivo_hash = ?', [hash])).length,
+    0,
+    'el hash del cliente ya no crea ni agrupa filas (L2)'
+  );
 });

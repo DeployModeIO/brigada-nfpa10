@@ -1,9 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { validarLoteExport, construirPayloadImport, resumirImportacion, hashArchivo } = await import(
-  './.build/importarterreno.mjs'
-)
+const { validarLoteExport, construirPayloadImport, resumirImportacion, hashArchivo, puedeImportarSegunRol } =
+  await import('./.build/importarterreno.mjs')
 
 const loteValido = {
   schema: 'brigada.export/v1',
@@ -113,6 +112,16 @@ test('resumirImportacion: contadores por estado', () => {
   ])
   assert.deepEqual(resumen, { total: 5, creados: 2, duplicados: 1, errores: 2 })
   assert.deepEqual(resumirImportacion([]), { total: 0, creados: 0, duplicados: 0, errores: 0 })
+})
+
+test('puedeImportarSegunRol: solo el rol exacto "admin" habilita (L5)', () => {
+  assert.equal(puedeImportarSegunRol('admin'), true)
+  assert.equal(puedeImportarSegunRol('Admin'), false)
+  assert.equal(puedeImportarSegunRol('administrador'), false)
+  assert.equal(puedeImportarSegunRol('inspector'), false)
+  assert.equal(puedeImportarSegunRol('supervisor'), false)
+  assert.equal(puedeImportarSegunRol(''), false)
+  assert.equal(puedeImportarSegunRol(undefined), false)
 })
 
 test('hashArchivo: hex estable y sensible al contenido', async () => {

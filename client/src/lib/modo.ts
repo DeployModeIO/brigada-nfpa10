@@ -18,3 +18,29 @@ export function esModoCaptura(valor: string | undefined): boolean {
 
 /** Bandera de build: activa el flujo captura-local + exportación manual. */
 export const MODO_CAPTURA: boolean = esModoCaptura(env().VITE_MODO_CAPTURA)
+
+/** Milisegundos en un día (M4). */
+const DIA_MS = 86_400_000
+
+/**
+ * M4: días de vida de la sesión permanente en captura-local. Default 30;
+ * `VITE_SESION_DIAS` (entero > 0) lo sobreescribe. Helper PURO y testeable.
+ */
+export function diasSesionCaptura(valor: string | undefined, porDefecto = 30): number {
+  const n = parseInt(String(valor ?? ''), 10)
+  return Number.isFinite(n) && n > 0 ? n : porDefecto
+}
+
+/** Días de vigencia configurados para esta build (env de compilación). */
+export const SESION_CAPTURA_DIAS: number = diasSesionCaptura(env().VITE_SESION_DIAS)
+
+/**
+ * M4: helper PURO de vigencia de la sesión de captura-local.
+ * `desdeIso === null` ⇒ sesión sin inicio ⇒ vigente. Vencida cuando
+ * `ahoraMs - Date.parse(desdeIso) > dias * 86400000`. Una fecha ilegible nunca expulsa
+ * al usuario (NaN no supera el límite).
+ */
+export function sesionCapturaVigente(desdeIso: string | null, dias: number, ahoraMs: number): boolean {
+  if (desdeIso === null) return true
+  return !(ahoraMs - Date.parse(desdeIso) > dias * DIA_MS)
+}

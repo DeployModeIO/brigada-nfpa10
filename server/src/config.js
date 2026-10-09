@@ -46,6 +46,21 @@ const config = {
   espejoIntervalMs: parseInt(process.env.ESPEJO_INTERVAL_MS || '30000', 10)
 };
 
+// ─── TLS opcional para producción (HTTPS en LAN interna/empresa) ───────────────
+// Si TLS_CERT y TLS_KEY están AMBOS definidos, server.js sirve por node:https en el
+// mismo puerto. Aceptan rutas a ficheros PEM (relativas a server/, como DB_URL) o el
+// PEM inline. Par autofirmado de referencia: server/scripts/gen-cert.sh (SOLO LAN interna).
+function leerPem(valor) {
+  if (!valor) return '';
+  try {
+    const ruta = path.resolve(__dirname, '..', valor);
+    if (fs.existsSync(ruta)) return fs.readFileSync(ruta, 'utf8');
+  } catch (_) { /* cae a usar el valor tal cual (PEM inline) */ }
+  return valor;
+}
+config.tlsCert = leerPem(process.env.TLS_CERT || '');
+config.tlsKey = leerPem(process.env.TLS_KEY || '');
+
 
 // ─── C1 (fixes seguridad 03/10/2026) ───────────────────────────────────────────
 // En producción está PROHIBIDO el secreto del repositorio: AUTH_SECRET debe venir

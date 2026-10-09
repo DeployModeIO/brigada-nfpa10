@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('fs');
+const https = require('https');
 const config = require('./config');
 const db = require('./db');
 const { migrate } = require('./db/migrate');
@@ -28,9 +29,18 @@ const { startEspejoJob } = require('./integration/espejo');
   startWebhookJob(config.webhookIntervalMs);
   startEspejoJob();
 
-  const server = app.listen(config.port, () => {
-    console.log(`[${new Date().toISOString()}] API Brigada NFPA 10 escuchando en http://0.0.0.0:${config.port} (DB_DRIVER=${config.dbDriver}, rutas /api/v1)`);
-  });
+  // TLS de producción (opcional): con TLS_CERT y TLS_KEY definidos se sirve por HTTPS en
+  // el mismo puerto (uso pensado: LAN interna/empresa con el par de gen-cert.sh).
+  let server;
+  if (config.tlsCert && config.tlsKey) {
+    server = https.createServer({ cert: config.tlsCert, key: config.tlsKey }, app).listen(config.port, () => {
+      console.log(`[${new Date().toISOString()}] API Brigada NFPA 10 escuchando en https://0.0.0.0:${config.port} (HTTPS, DB_DRIVER=${config.dbDriver}, rutas /api/v1)`);
+    });
+  } else {
+    server = app.listen(config.port, () => {
+      console.log(`[${new Date().toISOString()}] API Brigada NFPA 10 escuchando en http://0.0.0.0:${config.port} (DB_DRIVER=${config.dbDriver}, rutas /api/v1)`);
+    });
+  }
 
   const shutdown = (sig) => {
     console.log(`[${new Date().toISOString()}] ${sig}: cerrando servidor`);

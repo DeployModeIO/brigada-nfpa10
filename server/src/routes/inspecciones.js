@@ -1,4 +1,5 @@
 'use strict';
+const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
 const { auth, requireRole } = require('../middleware/auth');
@@ -199,9 +200,26 @@ function emitirEventos(ev) {
   }
 }
 
-// Cuenta agregada de una importación. Con archivo_hash se acumula sobre la última fila de
-// ese hash (una misma carga procesada ítem a ítem); sin él, cada llamada crea una fila
-// independiente. Best-effort: un fallo aquí NUNCA voltea la respuesta de la inspección.
+// L2 (integridad de auditoría): hash de la importación calculado EN EL SERVIDOR a partir
+// del contenido del ítem. El valor que envía el cliente (meta.archivo_hash) deja de ser
+// clave de merge — un cliente malicioso podría agrupar o contaminar contadores ajenos —
+// y pasa a ser SOLO una etiqueta informativa dentro de `detalle` de la fila.
+function hashAuditoriaImport(body) {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify({
+      tag: body.tag,
+      resultados: body.resultados,
+      creado_en: body.creado_en,
+      captura_id: body.captura_id
+    }))
+    .digest('hex');
+}
+
+// Cuenta de una importación. Con archivo_hash (hash calculado por el SERVIDOR, ver
+// hashAuditoriaImport) se acumula sobre la última fila de ese hash (reintentos y
+// reimportaciones del mismo payload); sin él, cada llamada crea una fila independiente.
+// Best-effort: un fallo aquí NUNCA voltea la respuesta de la inspección.
 async function registrarImportacion({ archivoHash, dispositivo, creados = 0, duplicados = 0, errores = 0, detalle = null }) {
   try {
     const nowIso = new Date().toISOString();
@@ -245,19 +263,22 @@ router.post('/inspections/import', auth, requireRole('admin'), async (req, res, 
   try {
     const body = req.body || {};
     const meta = body.meta && typeof body.meta === 'object' ? body.meta : {};
-    const archivoHash = cleanStr(meta.archivo_hash, 64);
+    // L2: clave de merge calculada por el SERVIDOR; el valor del cliente es solo etiqueta.
+    const archivoHash = hashAuditoriaImport(body);
+    const hashCliente = cleanStr(meta.archivo_hash, 64);
+    const detalleL2 = (msg) => (hashCliente ? `${msg} | archivo_hash_cliente=${hashCliente}` : msg);
     const dispositivo = cleanStr(body.dispositivo, 128) || cleanStr(meta.dispositivo, 128) || null;
     const capturaId = cleanStr(body.captura_id, 64);
     // M1: captura_id es OBLIGATORIO (clave de la deduplicación atómica por índice UNIQUE).
     if (!capturaId) {
-      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: 'captura_id faltante' });
+      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: detalleL2('captura_id faltante') });
       return bad(res, 'captura_id es requerido');
     }
 
     // creado_en: ISO válida, no futura (>5 min de skew) ni anterior a 2000-01-01.
     const vd = validDate(body.creado_en);
     if (vd === undefined) {
-      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: 'creado_en inválido' });
+      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: detalleL2('creado_en inválido') });
       return bad(res, 'creado_en: fecha inválida');
     }
     let createdIso = new Date().toISOString();
@@ -265,11 +286,11 @@ router.post('/inspections/import', auth, requireRole('admin'), async (req, res, 
     if (vd) {
       const ms = Date.parse(vd);
       if (ms > Date.now() + SKEW_FUTURO_MS) {
-        await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: 'creado_en futuro' });
+        await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: detalleL2('creado_en futuro') });
         return bad(res, 'creado_en no puede estar en el futuro');
       }
       if (ms < MIN_CAPTURA_MS) {
-        await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: 'creado_en anterior a 2000' });
+        await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: detalleL2('creado_en anterior a 2000') });
         return bad(res, 'creado_en anterior a 2000-01-01');
       }
       createdIso = new Date(ms).toISOString();
@@ -280,7 +301,7 @@ router.post('/inspections/import', auth, requireRole('admin'), async (req, res, 
     if (capturaId) {
       const dup = await db.get('SELECT id FROM inspecciones WHERE captura_id = ? LIMIT 1', [capturaId]);
       if (dup) {
-        await registrarImportacion({ archivoHash, dispositivo, duplicados: 1, detalle: `duplicado captura_id=${capturaId}` });
+        await registrarImportacion({ archivoHash, dispositivo, duplicados: 1, detalle: detalleL2(`duplicado captura_id=${capturaId}`) });
         return res.status(200).json({ duplicado: true, captura_id: capturaId });
       }
     }
@@ -299,18 +320,18 @@ router.post('/inspections/import', auth, requireRole('admin'), async (req, res, 
       // de propagar un 500. Se cubren mensajes de sqlite/postgres/mysql.
       const msg = String((e && e.message) || '').toLowerCase();
       if (msg.includes('unique') || msg.includes('duplicate')) {
-        await registrarImportacion({ archivoHash, dispositivo, duplicados: 1, detalle: `duplicado (UNIQUE) captura_id=${capturaId}` });
+        await registrarImportacion({ archivoHash, dispositivo, duplicados: 1, detalle: detalleL2(`duplicado (UNIQUE) captura_id=${capturaId}`) });
         return res.status(200).json({ duplicado: true, captura_id: capturaId });
       }
       throw e;
     }
 
     if (r.status !== 201) {
-      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: cleanStr(r.payload && r.payload.msg, 500) });
+      await registrarImportacion({ archivoHash, dispositivo, errores: 1, detalle: detalleL2(cleanStr(r.payload && r.payload.msg, 500)) });
       return res.status(r.status).json(r.payload);
     }
 
-    await registrarImportacion({ archivoHash, dispositivo, creados: 1, detalle: `importado ${r.payload.tag}` });
+    await registrarImportacion({ archivoHash, dispositivo, creados: 1, detalle: detalleL2(`importado ${r.payload.tag}`) });
     res.status(201).json({
       id: r.payload.id,
       tag: r.payload.tag,
@@ -372,3 +393,5 @@ router.get('/inspections/:id', auth, async (req, res, next) => {
 });
 
 module.exports = router;
+// Expuesto para los tests (recalculan la clave de merge exacta del servidor).
+module.exports.hashAuditoriaImport = hashAuditoriaImport;

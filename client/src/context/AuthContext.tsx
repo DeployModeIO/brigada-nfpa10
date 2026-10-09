@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, clearToken, getToken, setToken, type Usuario } from '../lib/api'
-import { setSetting } from '../lib/offline'
-import { MODO_CAPTURA } from '../lib/modo'
+import { getSetting, setSetting } from '../lib/offline'
+import { MODO_CAPTURA, SESION_CAPTURA_DIAS, sesionCapturaVigente } from '../lib/modo'
 
 interface JwtUserPayload { id: number; username: string; nombre: string; rol: string; must_change_password?: number | boolean }
 
@@ -30,6 +30,9 @@ export interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+/** M4: clave IndexedDB (settings) con el inicio ISO de la sesión permanente de captura-local. */
+const CLAVE_SESION_CAPTURA = 'sesion_captura_desde'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => getToken())
@@ -94,6 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(res.token)
     // espejo en IDB para que el service worker pueda sincronizar la cola
     void setSetting('token', res.token).catch(() => {})
+    // M4: en captura-local se ancla el inicio de la sesión permanente si aún no existe.
+    if (MODO_CAPTURA) {
+      void getSetting<string>(CLAVE_SESION_CAPTURA)
+        .then((desde) => (desde == null ? setSetting(CLAVE_SESION_CAPTURA, new Date().toISOString()) : undefined))
+        .catch(() => {})
+    }
     setUsuario({ id: res.user.id, usuario: res.user.username, nombre: res.user.nombre, rol: res.user.rol })
     setTokenState(res.token)
     // Gate A1: con must_change_password=1 el server solo sirve /auth/change-password|/auth/me|/auth/logout.
@@ -102,9 +111,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { debeCambiarClave }
   }, [])
 
+  // M4: la sesión permanente de captura-local ahora tiene vida máxima (default 30 días,
+  // VITE_SESION_DIAS). Se comprueba async contra IndexedDB SIN bloquear el primer render:
+  // si al resolver resulta vencida, se limpia la sesión en ese momento (logout) para que
+  // el dispositivo re-autentique. Fuera de captura-local no hay caducidad (sin cambios).
+  const vencerSesionCaptura = useCallback(() => {
+    clearToken()
+    void setSetting('token', null).catch(() => {})
+    // El ancla muere con la sesión: el próximo login vuelve a anclar el inicio.
+    void setSetting(CLAVE_SESION_CAPTURA, null).catch(() => {})
+    setUsuario(null)
+    setTokenState(null)
+    setPasswordRequerida(false)
+  }, [])
+
+  useEffect(() => {
+    if (!MODO_CAPTURA) return
+    let vivo = true
+    void (async () => {
+      try {
+        const desde = await getSetting<string>(CLAVE_SESION_CAPTURA)
+        if (!vivo) return
+        if (desde == null) {
+          // Primera corrida con este control (o tras un vencimiento): anclar el inicio.
+          await setSetting(CLAVE_SESION_CAPTURA, new Date().toISOString())
+          return
+        }
+        if (!sesionCapturaVigente(desde, SESION_CAPTURA_DIAS, Date.now())) vencerSesionCaptura()
+      } catch {
+        /* IndexedDB no disponible: mantener la sesión (best-effort, igual que hoy) */
+      }
+    })()
+    return () => {
+      vivo = false
+    }
+  }, [vencerSesionCaptura])
+
   const logout = useCallback(() => {
     clearToken()
     void setSetting('token', null).catch(() => {})
+    // M4: el ancla de vigencia de captura-local también muere en el logout manual.
+    if (MODO_CAPTURA) void setSetting(CLAVE_SESION_CAPTURA, null).catch(() => {})
     setUsuario(null)
     setTokenState(null)
     setPasswordRequerida(false)

@@ -37,6 +37,31 @@ Remediación de la revisión de seguridad de la rama `feat/terreno-android-impor
   `*.tile.openstreetmap.org`; el resto de directivas no se debilita.
 - **L4 (LOW) — ignorado de keystores.** `*.jks`, `*.keystore`, `*.keystore.properties` y
   `**/*.keystore` añadidos a `client/android/.gitignore` y al `.gitignore` raíz.
+- **L2 (LOW) — hash de auditoría calculado en el servidor.** El merge de contadores de
+  `importaciones` ya NO usa el `meta.archivo_hash` enviado por el cliente (un cliente
+  malicioso podía agrupar/contaminar filas ajenas): la ruta de importación calcula
+  SHA-256 sobre `{tag, resultados, creado_en, captura_id}` y agrupa por ESE valor; el
+  hash del cliente pasa a ser solo una etiqueta informativa en `detalle`. Consecuencia:
+  la auditoría es una fila por payload de ítem (reintentos del mismo ítem siguen
+  acumulando en una fila).
+- **L5 (LOW) — gate admin en defensa de profundidad.** `ImportarTerrenoPage` renderiza
+  el formulario SOLO con `usuario.rol === 'admin'` (rol refrescado desde `GET /auth/me`;
+  offline, el decodificado del token). Con otro rol se muestra un aviso claro "solo
+  administrador" en lugar del formulario; el servidor sigue forzando 403.
+- **M4 (MEDIUM) — vencimiento de la sesión de captura-local.** La sesión permanente del
+  modo captura ahora caduca: máximo **30 días** (`VITE_SESION_DIAS` configurable) desde
+  el inicio anclado en IndexedDB (`sesion_captura_desde`). Al vencer se limpia token y
+  sesión para que el dispositivo re-autentique. El modo online NO cambia.
+
+### Changed
+
+- **TLS opcional en producción (HTTPS).** Nuevas variables `TLS_CERT`/`TLS_KEY` (rutas a
+  PEM o PEM inline): si ambas están definidas, `server.js` sirve por `node:https` en el
+  mismo puerto con log explícito "HTTPS"; sin ellas el arranque HTTP queda intacto y el
+  shutdown elegante sirve a ambos modos. Nuevo `server/scripts/gen-cert.sh` genera el par
+  autofirmado (10 años, SAN `localhost`/`127.0.0.1` + IP LAN opcional) en `server/certs/`
+  (gitignored), para uso SOLO en LAN interna/empresa. Documentado en `.env.example` y
+  `docs/DEPLOY.md` ("HTTPS en producción").
 
 ## [0.2.0] - 2026-10-09
 
