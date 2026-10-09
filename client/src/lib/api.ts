@@ -9,6 +9,7 @@
 import { installDemoFetch } from './demoMock'
 import { MODO_CAPTURA } from './modo'
 import { esNativo, leerApiBaseConfigurada } from './nativo'
+import { esUrlServidorValida } from './urlServidor'
 
 export * from './types'
 export { esNativo } from './nativo'
@@ -43,7 +44,8 @@ export interface ResolverApiBaseOpts {
 
 /**
  * Helper PURO y testeable: resuelve la base de la API.
- * Prioridad: envUrl → base guardada → (web: origen + /api/v1) → default local.
+ * Prioridad: envUrl → base guardada (REVALIDADA con esUrlServidorValida; si es inválida se
+ * descarta) → (web: origen + /api/v1) → default local.
  * En nativo, sin env ni base guardada, devuelve el default local (documentado): NO se
  * usa el origen del WebView (https://localhost) porque no es un servidor real. El default
  * local sirve con `adb reverse tcp:3200 tcp:3200`; en LAN real se fija VITE_API_URL o la
@@ -53,7 +55,10 @@ export function resolverApiBase(opts: ResolverApiBaseOpts): string {
   const envUrl = (opts.envUrl ?? '').trim()
   if (envUrl) return envUrl
   const stored = (opts.stored ?? '').trim()
-  if (stored) return stored
+  // Revalidación en CONSUMO (fast-follow seguridad): el valor guardado (Preferences/IDB)
+  // puede estar corrupto o haber sido forzado por otra app; si no pasa el mismo validador
+  // de la pantalla de configuración, se descarta y se sigue la cadena por defecto.
+  if (stored && esUrlServidorValida(stored)) return stored
   if (!opts.isNative) {
     const o = opts.origin
     if (o && /^https?:\/\//.test(o)) return `${o}/api/v1`

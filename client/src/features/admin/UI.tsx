@@ -2,16 +2,18 @@
 import { useState, type ReactNode } from 'react'
 import { AlertIcon, CheckIcon, CloseIcon } from '../../components/icons'
 
-export function Aviso({ tipo, children }: { tipo: 'ok' | 'err' | 'info'; children: ReactNode }) {
+export function Aviso({ tipo, children }: { tipo: 'ok' | 'err' | 'info' | 'warn'; children: ReactNode }) {
   const clases =
     tipo === 'ok'
       ? 'border-ok bg-ok/10 text-ok'
       : tipo === 'err'
         ? 'border-err bg-err/10 text-err'
-        : 'border-info bg-info/10 text-info'
+        : tipo === 'warn'
+          ? 'border-warn bg-warn/10 text-warn'
+          : 'border-info bg-info/10 text-info'
   return (
     <p role={tipo === 'err' ? 'alert' : 'status'} aria-live="polite" className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${clases}`}>
-      {tipo === 'err' ? <AlertIcon size={16} className="mt-0.5 shrink-0" /> : <CheckIcon size={16} className="mt-0.5 shrink-0" />}
+      {tipo === 'err' || tipo === 'warn' ? <AlertIcon size={16} className="mt-0.5 shrink-0" /> : <CheckIcon size={16} className="mt-0.5 shrink-0" />}
       <span>{children}</span>
     </p>
   )

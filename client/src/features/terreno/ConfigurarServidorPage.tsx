@@ -5,16 +5,11 @@
  * (Preferences 'apiBase' en nativo; store de ajustes en web). Tras guardar, avisa de que
  * puede hacer falta reiniciar la app (API_BASE se resuelve al arrancar).
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { API_BASE } from '../../lib/api'
-import {
-  esNativo,
-  esUrlServidorValida,
-  guardarApiBase,
-  leerApiBaseConfigurada,
-  normalizarUrlServidor,
-} from '../../lib/nativo'
+import { esNativo, guardarApiBase, leerApiBaseConfigurada } from '../../lib/nativo'
+import { esHttpPublicoInseguro, esUrlServidorValida, normalizarUrlServidor } from '../../lib/urlServidor'
 import { AlertIcon, CheckIcon, DownloadIcon, GearIcon, InfoIcon } from '../../components/icons'
 import { Aviso, btnPrimarioCls, inputCls } from '../admin/UI'
 
@@ -31,6 +26,9 @@ export default function ConfigurarServidorPage() {
   const [valor, setValor] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
+  // Aviso de seguridad (fast-follow): http:// hacia un host PÚBLICO = tráfico en claro
+  // fuera de la red local. Se evalúa la URL conforme se escribe (normalizada).
+  const avisoHttpPublico = useMemo(() => esHttpPublicoInseguro(normalizarUrlServidor(valor)), [valor])
 
   useEffect(() => {
     let vivo = true
@@ -126,6 +124,15 @@ export default function ConfigurarServidorPage() {
           <InfoIcon size={16} className="mt-0.5 shrink-0" />
           Si omite <span className="font-mono">/api/v1</span>, se añadirá automáticamente.
         </p>
+        {avisoHttpPublico && (
+          <div className="mt-3" data-testid="aviso-http-publico">
+            <Aviso tipo="warn">
+              Esa dirección usa http:// hacia un host fuera de la red local: tráfico en claro
+              fuera de la red local (legible en el camino). Use https:// o una IP de la LAN
+              (por ejemplo 192.168.x.x).
+            </Aviso>
+          </div>
+        )}
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <button type="button" onClick={() => void onGuardar()} className={`${btnPrimarioCls} flex-1`}>

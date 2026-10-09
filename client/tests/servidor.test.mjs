@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { esUrlServidorValida } = await import('./.build/servidor.mjs')
+const { esUrlServidorValida, esHttpPublicoInseguro } = await import('./.build/servidor.mjs')
 
 test('esUrlServidorValida: acepta http/https con host y puerto', () => {
   assert.equal(esUrlServidorValida('http://192.168.1.10:8080/api/v1'), true)
@@ -30,4 +30,30 @@ test('esUrlServidorValida: tolera null/undefined/valores no string', () => {
   assert.equal(esUrlServidorValida(undefined), false)
   // @ts-expect-error valor no string en runtime
   assert.equal(esUrlServidorValida(123), false)
+})
+
+test('esHttpPublicoInseguro: http:// en LAN local (RFC1918/localhost) ⇒ false', () => {
+  assert.equal(esHttpPublicoInseguro('http://192.168.1.10:8080/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://10.0.0.5/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://172.16.5.4:3200/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://172.31.255.1/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://localhost:3200/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://127.0.0.1:3200/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://pc-brigada.local/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('http://169.254.1.9/api/v1'), false)
+})
+
+test('esHttpPublicoInseguro: http:// con host público ⇒ true (aviso)', () => {
+  assert.equal(esHttpPublicoInseguro('http://brigada.ejemplo.com/api/v1'), true)
+  assert.equal(esHttpPublicoInseguro('http://8.8.8.8/api/v1'), true)
+  assert.equal(esHttpPublicoInseguro('http://172.32.0.1/api/v1'), true) // fuera de RFC1918
+  assert.equal(esHttpPublicoInseguro('http://192.169.1.1/api/v1'), true) // casi-privada
+})
+
+test('esHttpPublicoInseguro: https y entradas inválidas ⇒ false (no avisar dos veces)', () => {
+  assert.equal(esHttpPublicoInseguro('https://brigada.ejemplo.com/api/v1'), false)
+  assert.equal(esHttpPublicoInseguro('no-es-una-url'), false)
+  assert.equal(esHttpPublicoInseguro(''), false)
+  assert.equal(esHttpPublicoInseguro(null), false)
+  assert.equal(esHttpPublicoInseguro(undefined), false)
 })

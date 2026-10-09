@@ -37,10 +37,20 @@ export const SESION_CAPTURA_DIAS: number = diasSesionCaptura(env().VITE_SESION_D
 /**
  * M4: helper PURO de vigencia de la sesión de captura-local.
  * `desdeIso === null` ⇒ sesión sin inicio ⇒ vigente. Vencida cuando
- * `ahoraMs - Date.parse(desdeIso) > dias * 86400000`. Una fecha ilegible nunca expulsa
- * al usuario (NaN no supera el límite).
+ * `ahoraMs - Date.parse(desdeIso) > dias * 86400000`. Una fecha ilegible se trata como
+ * ancla «ahora» (vigente): el llamador DEBE re-anclar con la hora actual usando
+ * `anclaSesionLegible` (nunca expulsa al usuario por un ancla corrupta).
  */
 export function sesionCapturaVigente(desdeIso: string | null, dias: number, ahoraMs: number): boolean {
   if (desdeIso === null) return true
   return !(ahoraMs - Date.parse(desdeIso) > dias * DIA_MS)
+}
+
+/**
+ * M4 (fast-follow): true solo con un ancla LEGIBLE (string parseable como fecha).
+ * `null`/undefined/ilegible ⇒ false ⇒ el llamador re-ancla la sesión con la hora actual.
+ */
+export function anclaSesionLegible(desdeIso: string | null | undefined): boolean {
+  if (desdeIso == null) return false
+  return Number.isFinite(Date.parse(desdeIso))
 }

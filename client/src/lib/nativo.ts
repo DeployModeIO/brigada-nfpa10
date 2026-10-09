@@ -147,32 +147,10 @@ export async function escanearNativo(): Promise<string | null> {
   }
 }
 // ─── A0: base de servidor configurable en runtime (pantalla "Configurar servidor") ───
+// Los validadores PUROS viven en src/lib/urlServidor.ts (módulo neutro sin imports para
+// que api.ts y la pantalla los usen sin ciclos); aquí se reexportan por compatibilidad.
 
-/**
- * Valida que un texto tenga forma de URL de servidor http(s)://host[:puerto][/ruta].
- * Helper PURO (testeable en node): exige esquema http/https y un hostname parseable.
- */
-export function esUrlServidorValida(valor: string | null | undefined): boolean {
-  if (typeof valor !== 'string') return false
-  const s = valor.trim()
-  if (!/^https?:\/\//i.test(s)) return false
-  try {
-    const u = new URL(s)
-    return Boolean(u.hostname)
-  } catch {
-    return false
-  }
-}
-
-/**
- * Normaliza la URL del servidor para el contrato del cliente (base + /api/v1):
- * recorta espacios y barras finales y añade el sufijo /api/v1 si no lo lleva.
- */
-export function normalizarUrlServidor(valor: string): string {
-  let s = (valor ?? '').trim().replace(/\/+$/, '')
-  if (s && !/\/api\/v\d+$/i.test(s)) s = `${s}/api/v1`
-  return s
-}
+export { esUrlServidorValida, esHttpPublicoInseguro, normalizarUrlServidor } from './urlServidor'
 
 /**
  * Base de API configurada en el dispositivo: Preferences 'apiBase' en nativo,

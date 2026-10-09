@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, clearToken, getToken, setToken, type Usuario } from '../lib/api'
 import { getSetting, setSetting } from '../lib/offline'
-import { MODO_CAPTURA, SESION_CAPTURA_DIAS, sesionCapturaVigente } from '../lib/modo'
+import { MODO_CAPTURA, SESION_CAPTURA_DIAS, anclaSesionLegible, sesionCapturaVigente } from '../lib/modo'
 
 interface JwtUserPayload { id: number; username: string; nombre: string; rol: string; must_change_password?: number | boolean }
 
@@ -128,22 +128,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!MODO_CAPTURA) return
     let vivo = true
-    void (async () => {
+    // M4+ (fast-follow): chequeo reutilizable — al arrancar, al VOLVER a la app
+    // (visibilitychange) y al recuperar red (online). El ancla puede vencer con la app
+    // en pausa: sin esto el vencimiento solo se vería tras reiniciar el dispositivo.
+    const revisar = async () => {
       try {
         const desde = await getSetting<string>(CLAVE_SESION_CAPTURA)
         if (!vivo) return
-        if (desde == null) {
-          // Primera corrida con este control (o tras un vencimiento): anclar el inicio.
+        if (!anclaSesionLegible(desde)) {
+          // Sin ancla (primera corrida o tras un vencimiento) o ancla ilegible:
+          // se trata como «ancla ahora» — sesión vigente desde ya, re-anclada.
           await setSetting(CLAVE_SESION_CAPTURA, new Date().toISOString())
           return
         }
-        if (!sesionCapturaVigente(desde, SESION_CAPTURA_DIAS, Date.now())) vencerSesionCaptura()
+        if (!sesionCapturaVigente(desde as string, SESION_CAPTURA_DIAS, Date.now())) vencerSesionCaptura()
       } catch {
         /* IndexedDB no disponible: mantener la sesión (best-effort, igual que hoy) */
       }
-    })()
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void revisar()
+    }
+    void revisar()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', revisar)
     return () => {
       vivo = false
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', revisar)
     }
   }, [vencerSesionCaptura])
 

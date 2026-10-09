@@ -7,6 +7,7 @@ const { migrate } = require('./db/migrate');
 const { buildApp } = require('./app');
 const { startWebhookJob } = require('./lib/webhook');
 const { startEspejoJob } = require('./integration/espejo');
+const { validarParPem } = require('./lib/tls');
 
 (async () => {
   try {
@@ -33,7 +34,20 @@ const { startEspejoJob } = require('./integration/espejo');
   // el mismo puerto (uso pensado: LAN interna/empresa con el par de gen-cert.sh).
   let server;
   if (config.tlsCert && config.tlsKey) {
-    server = https.createServer({ cert: config.tlsCert, key: config.tlsKey }, app).listen(config.port, () => {
+    // Prevalidación del par PEM: error claro + salida 1 en vez de crash-loop críptico.
+    const par = validarParPem(config.tlsCert, config.tlsKey);
+    if (!par.ok) {
+      console.error(`[${new Date().toISOString()}] [tls] ${par.error}`);
+      console.error(`[${new Date().toISOString()}] [tls] Revise TLS_CERT/TLS_KEY (par de scripts/gen-cert.sh) y arranque de nuevo.`);
+      process.exit(1);
+    }
+    server = https.createServer({ cert: config.tlsCert, key: config.tlsKey }, app);
+    // Un PEM que pasa la prevalidación pero Node rechaza al usarlo tampoco debe crash-loop.
+    server.on('error', (err) => {
+      console.error(`[${new Date().toISOString()}] [tls] Error del servidor HTTPS (¿TLS_CERT/TLS_KEY inválidos?): ${err.message}`);
+      process.exit(1);
+    });
+    server.listen(config.port, () => {
       console.log(`[${new Date().toISOString()}] API Brigada NFPA 10 escuchando en https://0.0.0.0:${config.port} (HTTPS, DB_DRIVER=${config.dbDriver}, rutas /api/v1)`);
     });
   } else {

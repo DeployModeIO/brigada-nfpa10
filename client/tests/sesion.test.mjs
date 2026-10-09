@@ -8,9 +8,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { sesionCapturaVigente, diasSesionCaptura, SESION_CAPTURA_DIAS } = await import('./.build/modo.mjs')
+const { sesionCapturaVigente, anclaSesionLegible, diasSesionCaptura, SESION_CAPTURA_DIAS } = await import(
+  './.build/modo.mjs'
+)
 
 const AHORA = Date.parse('2026-10-09T12:00:00.000Z')
+const AHORA_ISO = '2026-10-09T12:00:00.000Z'
 
 test('sesionCapturaVigente: null ⇒ sesión sin inicio ⇒ vigente', () => {
   assert.equal(sesionCapturaVigente(null, 30, AHORA), true)
@@ -34,9 +37,18 @@ test('sesionCapturaVigente: el plazo en días escala (7 días)', () => {
   assert.equal(sesionCapturaVigente('2026-10-02T11:00:00.000Z', 7, AHORA), false)
 })
 
-test('sesionCapturaVigente: fecha ilegible nunca expulsa al usuario (NaN no vence)', () => {
+test('sesionCapturaVigente: fecha ilegible ⇒ ancla «ahora» (vigente; el llamador re-ancla)', () => {
   assert.equal(sesionCapturaVigente('no-es-fecha', 30, AHORA), true)
   assert.equal(sesionCapturaVigente('', 30, AHORA), true)
+})
+
+test('anclaSesionLegible: solo un string parseable como fecha es ancla legible', () => {
+  assert.equal(anclaSesionLegible(AHORA_ISO), true)
+  assert.equal(anclaSesionLegible('2026-10-09T12:00:00.000Z'), true)
+  assert.equal(anclaSesionLegible('no-es-fecha'), false, 'ilegible ⇒ re-anclar con la hora actual')
+  assert.equal(anclaSesionLegible(''), false)
+  assert.equal(anclaSesionLegible(null), false, 'null ⇒ sin ancla ⇒ re-anclar')
+  assert.equal(anclaSesionLegible(undefined), false)
 })
 
 test('diasSesionCaptura: entero >0 gana; el resto cae al default 30', () => {

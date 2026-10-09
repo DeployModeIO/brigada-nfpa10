@@ -125,8 +125,14 @@ falta de conexión, que cancelan la tanda).
 
 ### Trazabilidad
 
-`meta.archivo_hash` agrupa los contadores de una misma carga en la tabla `importaciones`
-(`total`, `creados`, `duplicados`, `errores`), acumulando sobre la última fila de ese hash.
+La clave de agrupación de los contadores en la tabla `importaciones` (`total`, `creados`,
+`duplicados`, `errores`) la calcula **el servidor**: hash SHA-256 del contenido del ítem
+(`tag` normalizado + `resultados` + `creado_en` + `captura_id`; ver `hashAuditoriaImport`
+en `server/src/routes/inspecciones.js`). Reintentos y reimportaciones del mismo payload
+acumulan sobre la última fila de ese hash. El `meta.archivo_hash` que envía el cliente
+**dejó de ser clave de merge** (un cliente malicioso podría agrupar o contaminar contadores
+ajenos): es solo una etiqueta informativa dentro del campo `detalle` de la fila
+(`archivo_hash_cliente=…`).
 
 ---
 

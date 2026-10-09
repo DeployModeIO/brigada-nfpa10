@@ -59,6 +59,25 @@ test('resolverApiBase: valores vacíos/espacios se ignoran (trim)', () => {
   )
 })
 
+test('resolverApiBase: base guardada INVÁLIDA se descarta (revalidación en consumo)', () => {
+  // Fast-follow seguridad: el valor en Preferences/IDB puede estar corrupto o forzado.
+  // No pasa esUrlServidorValida ⇒ se cae a la cadena por defecto, nunca se usa.
+  assert.equal(resolverApiBase({ isNative: true, stored: 'no-es-una-url', origin: 'https://localhost' }), FALLBACK)
+  assert.equal(resolverApiBase({ isNative: true, stored: 'ftp://pc/api/v1', origin: 'https://localhost' }), FALLBACK)
+  assert.equal(resolverApiBase({ isNative: true, stored: 'http://', origin: 'https://localhost' }), FALLBACK)
+  assert.equal(resolverApiBase({ isNative: true, stored: 'capacitor://localhost', origin: 'https://localhost' }), FALLBACK)
+  // En web, con la guardada inválida se usa el origen (comportamiento de siempre).
+  assert.equal(
+    resolverApiBase({ isNative: false, stored: 'javascript:alert(1)', origin: 'http://localhost:5199' }),
+    'http://localhost:5199/api/v1',
+  )
+  // Una guardada válida sigue mandando sobre el origen.
+  assert.equal(
+    resolverApiBase({ isNative: false, stored: 'http://192.168.1.10:8080/api/v1', origin: 'http://localhost:5199' }),
+    'http://192.168.1.10:8080/api/v1',
+  )
+})
+
 test('API_BASE inicial es un string no vacío (misma semántica que antes en el arranque)', () => {
   assert.equal(typeof API_BASE, 'string')
   assert.ok(API_BASE.length > 0)
