@@ -1,27 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Configuración de seguridad de red del APK de TERRENO (Capacitor).
-  La app corre en un WebView con esquema https://localhost y habla con el servidor
-  portátil del PC por http en la LAN → Android exige permitir tráfico en claro (cleartext).
+  Configuración de seguridad de red del APK de TERRENO (Capacitor) — BUILD DE PRUEBAS.
 
-  SEGURIDAD (H1): por defecto el tráfico en claro queda PROHIBIDO (base-config=false).
-  El servidor de campo por http en la LAN requiere una EXCEPCIÓN EXPLÍCITA y acotada con
-  <domain-config>: descomente la plantilla de abajo y sustituya 192.168.1.100 por la IP LAN
-  REAL del PC que corre el servidor (incluya también localhost si usa `adb reverse`).
+  NOTA IMPORTANTE (build de prueba de campo): el tráfico en claro (http) queda PERMITIDO
+  de forma general para poder apuntar el dispositivo a CUALQUIER PC de la LAN sin conocer
+  su IP de antemano y sin recompilar (domain-config solo admite hosts exactos, no rangos).
+  La propia app avisa si la URL configurada es http:// hacia un host PÚBLICO (fuera de la
+  red local). En la LAN de confianza el token viaja sin cifrar.
 
-  IMPORTANTE: esto es SOLO PARA PRUEBAS/TEST DE CAMPO en una LAN de confianza. En
-  producción el servidor debe servirse por HTTPS y este bloque debe permanecer comentado
-  (el base-config ya lo bloquea). Con cleartext, el Bearer token viaja SIN cifrar.
-  Ver client/CAPACITOR.md §7 y docs/DEPLOY.md §7.
+  PRODUCCIÓN: servir el PC por HTTPS (docs/DEPLOY.md §7) y volver a
+  <base-config cleartextTrafficPermitted="false" /> SIN domain-config.
+  Ver client/CAPACITOR.md §7.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-
-    <!--
-    PLANTILLA TEST/PRUEBA DE CAMPO (sustituir por la IP LAN real del PC):
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.1.100</domain>
-        <domain includeSubdomains="false">localhost</domain>
-    </domain-config>
-    -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

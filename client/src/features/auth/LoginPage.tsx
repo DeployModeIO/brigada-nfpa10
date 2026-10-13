@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { ShieldFlameIcon } from '../../components/icons'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { GearIcon, ShieldFlameIcon } from '../../components/icons'
 import { useAuth } from '../../context/AuthContext'
 import { useConfig } from '../../context/ConfigContext'
 import { DEMO_MODE } from '../../lib/api'
+import { esNativo } from '../../lib/nativo'
 
 interface Errores {
   usuario?: string
@@ -23,6 +24,14 @@ export default function LoginPage() {
   const [errores, setErrores] = useState<Errores>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // APK de terreno: enlace para apuntar al PC ANTES del primer login (en web, oculto).
+  const [esApk, setEsApk] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    void esNativo().then((n) => { if (vivo) setEsApk(n) })
+    return () => { vivo = false }
+  }, [])
 
   useEffect(() => {
     if (autenticado && !cargando) navigate(desde, { replace: true })
@@ -140,6 +149,15 @@ export default function LoginPage() {
           {enviando ? 'Entrando…' : 'Iniciar sesión'}
         </button>
       </form>
+
+      {esApk && (
+        <Link
+          to="/servidor"
+          className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-text2 underline hover:bg-bg2"
+        >
+          <GearIcon size={18} /> Configurar servidor del PC (primera vez)
+        </Link>
+      )}
     </main>
   )
 }

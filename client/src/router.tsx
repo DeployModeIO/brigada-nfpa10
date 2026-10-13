@@ -55,6 +55,9 @@ function Shell() {
 export const routes: RouteObject[] = [
   { path: '/login', element: <Suspense fallback={<Cargando />}><LoginPage /></Suspense> },
   { path: '/cambio-password', element: <Suspense fallback={<Cargando />}><CambioPasswordPage /></Suspense> },
+  // /servidor es PÚBLICA: el APK de terreno necesita apuntar al PC ANTES del primer
+  // login (el login exige alcanzar el servidor). En el login (nativo) hay un enlace.
+  { path: '/servidor', element: <Suspense fallback={<Cargando />}><ConfigurarServidorPage /></Suspense> },
   {
     path: '/',
     element: <Shell />,
@@ -67,7 +70,6 @@ export const routes: RouteObject[] = [
       { path: 'planta', element: <PlantaPage /> },
       { path: 'alertas', element: <AlertsPage /> },
       { path: 'exportar', element: <ExportarPage /> },
-      { path: 'servidor', element: <ConfigurarServidorPage /> },
       { path: 'export', element: <ExportPage /> },
       { path: 'admin', element: <AdminSettingsPage /> },
       { path: 'importar-terreno', element: <ImportarTerrenoPage /> },
